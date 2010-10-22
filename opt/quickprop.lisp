@@ -11,7 +11,7 @@
 	(prev-err most-positive-fixnum)
 	(epoch-err 0)
 	(params (copy-tree init-params))
-	(recompute-limit (param init-params :recompute))
+;	(recompute-limit (param init-params :recompute))
 	(num-patterns (num-patterns patterns))
 	(act-fn-deriv (deriv-fn-name act-fn)))
     (dotimes (i iter)

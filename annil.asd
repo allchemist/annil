@@ -35,10 +35,15 @@
 		      :serial t
 		      :components
 		      ((:file "cascor")
-		       (:file "cascor-train")))))
+		       (:file "cascor-train")))
+	     (:module hebbian
+		      :components
+		      ((:file "gha")))))
    (:module tasks
 	    :components
-	    ((:file "classification")))
+	    ((:file "preproc")
+	     (:file "classification")
+	     (:file "coding" :depends-on ("preproc"))))
    (:module tests
 	    :components
 	    ((:file "two-spirals")
