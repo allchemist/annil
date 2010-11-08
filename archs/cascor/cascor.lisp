@@ -116,6 +116,9 @@
 	 (eval-cascor-full-input cascor input))
    (cascor-act-fn cascor)))
 
+(defmethod eval-network ((network cascor) input)
+  (cascor-eval-output network input))
+
 ;; KLUDGE
 
 (defun cascor-full-patterns (cascor patterns)

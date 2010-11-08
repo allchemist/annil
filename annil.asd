@@ -35,7 +35,9 @@
 		      :serial t
 		      :components
 		      ((:file "cascor")
-		       (:file "cascor-train")))
+		       (:file "cascor-train")
+		       ;(:file "fcascor")
+		       ))
 	     (:module hebbian
 		      :components
 		      ((:file "gha")))))

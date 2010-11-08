@@ -20,6 +20,11 @@
   (and (listp patterns)
        (vectorp (first patterns))))
 
+(defun single-pattern-p (pattern)
+  (or (vectorp pattern)
+      (and (listp pattern)
+	   (vectorp (first pattern)))))
+
 (deftype matrix-patterns () '(satisfies matrix-patterns-p))
 ;; matrix inputs are simply a 2d-array
 (deftype matrix-inputs () '(satisfies arrayp))

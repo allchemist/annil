@@ -43,6 +43,22 @@
 				 patterns epochs params)
 		 :range classifier-range))
 |#
+
+;; slp classifier
+
+(defclass slp-classifier (classifier)
+  ((net :initarg :net :accessor classifier-net)))
+
+(defun make-slp-classifier (train-patterns test-patterns act-fn params classifier-range)
+  (make-instance 'slp-classifier
+		 :net (slp-train (make-random-slp (patterns-input-dim train-patterns)
+						  (patterns-output-dim train-patterns)
+						  act-fn)
+				 train-patterns test-patterns params 'quickprop-mix)
+		 :range classifier-range))
+
+
+
 ;; cascor classifier
 
 (defclass cascor-classifier (classifier)

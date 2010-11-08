@@ -1,38 +1,135 @@
 (in-package :annil)
 
-(defun quickprop-sse
- (weights patterns act-fn iter init-params)
+(defun quickprop-update (d s ps eps mu shrink-factor)
+  (let ((step 0.0))
+    (cond ((minusp d)
+	   (when (plusp s)
+	     (decf step (* eps s))) 
+	   (if (>= s (* shrink-factor ps))
+	       (incf step (* mu d))
+	       (incf step (* d (/ s (- ps s))))))
+	  ((plusp d)
+	   (when (minusp s)
+	     (decf step (* eps s)))
+	   (if (<= s (* shrink-factor ps))
+	       (incf step (* mu d))
+	       (incf step (* d (/ s (- ps s))))))
+	  (t (decf step (* eps s))))
+    step))
+
+(defun sse-patterns-err (patterns weights act-fn)
+  (let ((err 0)
+	(out (make-matrix (patterns-output-dim patterns))))
+    (do-patterns (patterns p)
+      (incf err
+	    (msum
+	     (map-matrix-square
+	      (m- (map-matrix (gemv weights (first p) :dest out) act-fn)
+		  (second p))))))
+    (/ err (num-patterns patterns))))
+
+(defun quickprop-sse (weights train-patterns test-patterns act-fn init-params)
   (let ((delta-weights (make-matrix-like weights))
+	(prev-delta-weights (make-matrix-like weights))
+	(slopes (make-matrix-like weights))
+	(prev-slopes (make-matrix-like weights))
+
+	(out (make-matrix (patterns-output-dim train-patterns)))
+	(lgrad (make-matrix (patterns-output-dim train-patterns)))
+	(prev-epoch-err most-positive-fixnum)
+	(epoch-err 0)
+	(prev-test-err 0)
+	(test-err most-positive-fixnum)
+	(num-patterns (num-patterns train-patterns))
+	(act-fn-deriv (deriv-fn-name act-fn))
+
+	(params (copy-tree init-params))
+	(deriv-offset (param init-params :deriv-offset))
+	(decay (param init-params :decay))
+	(recompute-limit (param init-params :recompute)))
+
+    (dotimes (i (param params :iter))
+      (let* ((eps (param params :eps))
+	     (mu (param params :mu))
+	     (shrink-factor (/ mu (1+ mu))))
+	(do-patterns-shuffle (train-patterns p)
+	  (map-matrix (gemv weights (first p) :dest out) act-fn)
+	  (m- (copy out lgrad) (second p))
+	  (incf epoch-err (msum (map-matrix-square (copy lgrad))))
+	  (m* lgrad (map-matrix out act-fn-deriv))
+	  (m* lgrad (m+c (map-matrix out act-fn-deriv) deriv-offset))
+	  (ger lgrad (first p) :dest slopes)
+
+	  (map-three-matrices delta-weights slopes prev-slopes
+			      #'(lambda (d s ps)
+				  (quickprop-update d s ps eps mu shrink-factor)))
+	  (m+ weights delta-weights)
+;	  (m*c weights (1- decay))
+	  (copy slopes prev-slopes)
+	  (m- slopes slopes))
+
+	(setf prev-test-err test-err
+	      test-err (sse-patterns-err test-patterns weights act-fn))
+
+	(setf epoch-err (/ epoch-err num-patterns))
+	(setf prev-epoch-err epoch-err
+	      epoch-err 0)
+	(info "err: ~A, test-err: ~A~%" prev-epoch-err test-err)
+
+		
+	(if (<= prev-test-err test-err)
+	    (decf (param params :recompute))
+	    (when (< (param params :recompute) recompute-limit)
+	      (incf (param params :recompute))))
+	(when (minusp (param params :recompute))
+	  (info "Stagnant at ~A epoch~%" i)
+	  (return))
+
+	))
+    weights))
+
+(defun quickprop-mix-sse (weights patterns train-part act-fn init-params)
+  (let ((delta-weights (make-matrix-like weights))
+	(prev-delta-weights (make-matrix-like weights))
 	(slopes (make-matrix-like weights))
 	(prev-slopes (make-matrix-like weights))
 
 	(out (make-matrix (patterns-output-dim patterns)))
 	(lgrad (make-matrix (patterns-output-dim patterns)))
-	(prev-err most-positive-fixnum)
+	(prev-epoch-err most-positive-fixnum)
 	(epoch-err 0)
-	(params (copy-tree init-params))
-;	(recompute-limit (param init-params :recompute))
+	(prev-test-err 0)
+	(test-err most-positive-fixnum)
 	(num-patterns (num-patterns patterns))
-	(act-fn-deriv (deriv-fn-name act-fn)))
-    (dotimes (i iter)
-      (let* ((eps (/ (param params :epsilon) num-patterns (patterns-input-dim patterns)))
+	(act-fn-deriv (deriv-fn-name act-fn))
+
+	(params (copy-tree init-params))
+	(deriv-offset (param init-params :deriv-offset))
+	(decay (param init-params :decay))
+	(recompute-limit (param init-params :recompute)))
+
+    (dotimes (i (param params :iter))
+      (let* ((eps (param params :eps))
 	     (mu (param params :mu))
-	     (shrink-factor (/ mu (1+ mu))))
+	     (shrink-factor (/ mu (1+ mu)))
+	     (train-patterns nil) (test-patterns nil) (counter 0))
 	(do-patterns-shuffle (patterns p)
+	  (if (< counter (* num-patterns train-part))
+	      (push p train-patterns)
+	      (push p test-patterns))
+	  (incf counter))
+	  
+	(do-patterns-shuffle (train-patterns p)
 	  (map-matrix (gemv weights (first p) :dest out) act-fn)
 	  (m- (copy out lgrad) (second p))
 	  (incf epoch-err (msum (map-matrix-square (copy lgrad))))
 	  (m* lgrad (map-matrix out act-fn-deriv))
+;	  (m* lgrad (m+c (map-matrix out act-fn-deriv) deriv-offset))
 	  (ger lgrad (first p) :dest slopes)
-	  
+
 	  (map-three-matrices delta-weights slopes prev-slopes
 			      #'(lambda (d s ps)
 				  (let ((step 0.0))
-;				    (when (< (* d s) 0)
-;				      (decf step (* eps s)))
-;				    (if (< (* d (- s (* shrink-factor ps))) 0)
-;					(incf step (* mu d))
-;					(incf step (* (/ s (- ps s)) d)))
 				    (cond ((minusp d)
 					   (when (plusp s)
 					     (decf step (* eps s))) 
@@ -47,23 +144,28 @@
 					       (incf step (* d (/ s (- ps s))))))
 					  (t (decf step (* eps s))))
 				    step)))
+
 	  (m+ weights delta-weights)
+;	  (m*c weights (1- decay))
 	  (copy slopes prev-slopes)
 	  (m- slopes slopes))
 
+	(setf prev-test-err test-err
+	      test-err (sse-patterns-err test-patterns weights act-fn))
+
 	(setf epoch-err (/ epoch-err num-patterns))
-;	(if (or (> epoch-err prev-err)
-;		(< (abs (- epoch-err prev-err)) (param params :thr))) 
-;	    (progn (decf (param params :recompute))
-;		   (when (> (param params :epsilon) (param params :eps-lower))
-;		     (setf (param params :epsilon) (* (param params :epsilon) (param params :eps-dec)))))
-;	    (progn (setf (param params :recompute) recompute-limit)
-;		   (when (< (param params :epsilon) (param params :eps-upper))
-;		     (setf (param params :epsilon) (* (param params :epsilon) (param params :eps-inc))))))
-;	(when (minusp (param params :recompute))
-;	  (return))
-	(setf prev-err epoch-err
+	(setf prev-epoch-err epoch-err
 	      epoch-err 0)
-	(info "err: ~A~%" prev-err)
+	(info "err: ~A, test-err: ~A~%" prev-epoch-err test-err)
+
+		
+	(if (<= prev-test-err test-err)
+	    (decf (param params :recompute))
+	    (when (< (param params :recompute) recompute-limit)
+	      (incf (param params :recompute))))
+	(when (minusp (param params :recompute))
+	  (info "Stagnant at ~A epoch~%" i)
+	  (return))
+
 	))
     weights))

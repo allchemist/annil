@@ -23,28 +23,25 @@
 (defclass gha-codec ()
   ((weights :initarg :weights :accessor gha-weights)))
 
-(defun make-gha-codec (inputs out-dim rate epochs eps)
+(defun make-gha-codec (patterns out-dim rate epochs eps)
   (make-instance 'gha-codec :weights
-		 (gha (make-gha-weights inputs out-dim)
-		      inputs rate epochs eps)))
+		 (gha (make-gha-weights (patterns-input-dim patterns) out-dim)
+		      patterns rate epochs eps)))
 
-(defun improve-gha-codec (gha-codec inputs rate epochs eps)
-  (gha (gha-weights gha-codec) inputs rate epochs eps))
+(defun improve-gha-codec (gha-codec patterns rate epochs eps)
+  (gha (gha-weights gha-codec) patterns rate epochs eps)
+  gha-codec)
 
-(defmethod encode ((codec gha-codec) (patterns vector))
-  (gha-eval (gha-weights codec) patterns))
+(defmethod encode ((codec gha-codec) patterns)
+  (if (vectorp patterns)
+      (gha-eval (gha-weights codec) patterns)
+      (if (vectorp (first patterns))
+	  (list (gha-eval (gha-weights codec) (first patterns)) (second patterns))
+	  (gha-takeback-patterns (gha-weights codec) patterns))))
 
-(defmethod encode ((codec gha-codec) (patterns array))
-  (gha-eval-patterns (gha-weights codec) patterns))
-
-(defmethod encode ((codec gha-codec) (patterns list))
-  (mapcar #'(lambda (i) (gha-eval (gha-weights codec) i)) patterns))
-
-(defmethod decode ((codec gha-codec) (patterns vector))
-  (gha-takeback (gha-weights codec) patterns))
-
-(defmethod decode ((codec gha-codec) (patterns array))
-  (gha-takeback-patterns (gha-weights codec) patterns))
-
-(defmethod decode ((codec gha-codec) (patterns list))
-  (mapcar #'(lambda (o) (gha-takeback (gha-weights codec) o)) patterns))
+(defmethod decode ((codec gha-codec) patterns)
+  (if (vectorp patterns)
+      (gha-takeback (gha-weights codec) patterns)
+      (if (vectorp (first patterns))
+	  (list (gha-takeback (gha-weights codec) (first patterns)) (second patterns))
+	  (gha-takeback-patterns (gha-weights codec) patterns))))

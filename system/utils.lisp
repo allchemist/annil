@@ -17,7 +17,8 @@
 	(t (/ 1.0 (+ 1.0 (exp (- x)))))))
 
 (defun sigmoid-fn-deriv (fn)
-  (- 0.25 (* fn fn)))
+;  (- 0.25 (* fn fn)))
+  (* fn (- 1.0 fn)))
 
 (defun asigmoid-fn-deriv (fn)
   (* fn (- 1.0 fn)))
@@ -28,7 +29,11 @@
   (declare (ignore fn))
   1.0)
   
-(defun tanh-fn (x) (* 1.7159 (tanh (* 2/3 x))))
+(defun tanh-fn (x)
+  (cond ((< x -10.0) -1.0)
+	((> x 10.0) 1.0)
+	(t (* 1.7159 (tanh (* 2/3 x))))))
+
 (defun tanh-fn-deriv (fn)
   (* 0.38852304 (- 1.7159 fn) (+ 1.7159 fn)))
 
@@ -59,6 +64,9 @@
    (let ((lst (make-list length)))
      (dotimes (i length lst)
        (setf (elt lst i) i)))))
+
+(defun random-elt (seq)
+  (elt seq (random (length seq))))
 
 (defun print-hash-table (hash-table)
   (loop for key being the hash-keys of hash-table
