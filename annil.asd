@@ -50,4 +50,7 @@
 	    :components
 	    ((:file "two-spirals")
 	     (:file "symbols")
-	     (:file "xor")))))
+	     (:file "xor")
+	     (:module elena
+		      :components
+		      ((:file "concentric")))))))
