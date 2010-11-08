@@ -64,8 +64,9 @@
 (defclass cascor-classifier (classifier)
   ((net :initarg :net :accessor classifier-net)))
 
-(defun make-cascor-classifier (patterns act-fn classifier-range hidden-layers epochs params)
+(defun make-cascor-classifier (train-patterns test-patterns act-fn classifier-range hidden-layers params)
   (make-instance 'cascor-classifier
-		 :net (cascor-train (make-random-cascor (patterns-input-dim patterns) (patterns-output-dim patterns) act-fn)
-				    patterns hidden-layers epochs params)
+		 :net (cascor-train (make-random-cascor (patterns-input-dim train-patterns)
+							(patterns-output-dim train-patterns) act-fn)
+				    train-patterns test-patterns hidden-layers params)
 		 :range classifier-range))

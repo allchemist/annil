@@ -9,27 +9,38 @@
    (norms :initarg :norms :accessor autoscale-norms)))
 
 (defun make-autoscale-codec (patterns)
-  (let ((params (autoscale-params patterns)))
+  (let* ((inputs (convert-patterns-to-matrix patterns))
+	 (params (autoscale-params (if (listp inputs) (first inputs) inputs))))
     (make-instance 'autoscale-codec :means (first params) :norms (second params))))
 
 (defmethod encode ((codec autoscale-codec) patterns)
-  (autoscale-patterns patterns (autoscale-means codec) (autoscale-norms codec)))
+  (if (vectorp patterns)
+      (autoscale-input patterns (autoscale-means codec) (autoscale-norms codec))
+      (if (vectorp (first patterns))
+	  (list (autoscale-input (first patterns) (autoscale-means codec) (autoscale-norms codec))
+		(second patterns))
+	  (autoscale-patterns patterns (autoscale-means codec) (autoscale-norms codec)))))
 
 (defmethod decode ((codec autoscale-codec) patterns)
-  (undo-autoscale-patterns patterns (autoscale-means codec) (autoscale-norms codec)))
+  (if (vectorp patterns)
+      (undo-autoscale-input patterns (autoscale-means codec) (autoscale-norms codec))
+      (if (vectorp (first patterns))
+	  (list (undo-autoscale-input (first patterns) (autoscale-means codec) (autoscale-norms codec))
+		(second patterns))
+	  (undo-autoscale-patterns patterns (autoscale-means codec) (autoscale-norms codec)))))
 
 ;; gha
 
 (defclass gha-codec ()
   ((weights :initarg :weights :accessor gha-weights)))
 
-(defun make-gha-codec (patterns out-dim rate epochs eps)
+(defun make-gha-codec (patterns out-dim params)
   (make-instance 'gha-codec :weights
 		 (gha (make-gha-weights (patterns-input-dim patterns) out-dim)
-		      patterns rate epochs eps)))
+		      patterns params)))
 
-(defun improve-gha-codec (gha-codec patterns rate epochs eps)
-  (gha (gha-weights gha-codec) patterns rate epochs eps)
+(defun improve-gha-codec (gha-codec patterns params)
+  (gha (gha-weights gha-codec) patterns params)
   gha-codec)
 
 (defmethod encode ((codec gha-codec) patterns)

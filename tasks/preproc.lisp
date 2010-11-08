@@ -39,19 +39,24 @@
   (m+ (m* input norms) means))
 
 (defun autoscale-patterns (patterns means norms)
-  (etypecase patterns
-    ((or matrix-inputs list-inputs)
-       (do-patterns (patterns p)
-	 (autoscale-input p means norms)))
-    ((or matrix-patterns list-patterns)
-       (do-patterns (patterns p)
-	 (autoscale-patterns (first p) means norms)))))
+  (let (new-pat)
+    (etypecase patterns
+      (list-inputs
+	 (do-patterns (patterns p)
+	   (push (autoscale-input p means norms) new-pat)))
+      (list-patterns
+	 (do-patterns (patterns p)
+	   (push (list (autoscale-input (first p) means norms) (second p)) new-pat))))
+    (nreverse new-pat)))
+
 
 (defun undo-autoscale-patterns (patterns means norms)
-  (etypecase patterns
-    ((or matrix-inputs list-inputs)
-       (do-patterns (patterns p)
-	 (undo-autoscale-input p means norms)))
-    ((or matrix-patterns list-patterns)
-       (do-patterns (patterns p)
-	 (undo-autoscale-patterns (first p) means norms)))))
+  (let (new-pat)
+    (etypecase patterns
+      (list-inputs
+	 (do-patterns (patterns p)
+	   (push (undo-autoscale-input p means norms) new-pat)))
+      (list-patterns
+	 (do-patterns (patterns p)
+	   (push (list (undo-autoscale-input (first p) means norms) (second p)) new-pat))))
+    (nreverse new-pat)))
