@@ -1,16 +1,5 @@
 (in-package :annil)
 
-(defun low-triangle (matrix)
-  ;; set every element on or above diagonal to zero
-   (let ((dim (dim0 matrix))
-	(element-type (array-element-type matrix)))
-    (assert (= dim (dim1 matrix)) nil "Matrix should be square")
-    (let ((zero (coerce 0 element-type)))
-      (dotimes (i dim)
-	(dotimes (j i)
-	  (setf (aref matrix i j) zero)))))
-  matrix)
-
 (defun make-gha-weights (input-dim output-dim)
   ;; init random gha weights
   (map-matrix (make-random-matrix (list output-dim input-dim))
@@ -37,13 +26,15 @@
     (list-patterns (mapcar #'(lambda (o) (list (gemv weights (first o) :transa :trans) (second o))) patterns))))
 
 (defun gha-adjust (weights input rate)
-  (let ((output (gha-eval weights input)))
-    (print 'input) (print-matrix input)
-    (print 'output) (print-matrix output)
-    (print 'weights) (print-matrix weights)
+  (let ((output (gha-eval weights input))
+	oo-space oi-space w-space)
+    (setf oo-space (make-matrix `(,(length output) ,(length output)))
+	  oi-space (make-matrix `(,(length output) ,(length input)))
+	  w-space (make-matrix-like weights))
     (m+ weights
-	(m*c (m- (print (ger output input))
-		 (print (gemm (low-triangle (ger output output)) weights)))
+	(m*c (m- (ger output input :dest oi-space)
+		 (trmm (ger output output :dest oo-space)
+		       (copy weights w-space) :uplo :lower))
 	     rate))))
 
 (defun gha-epoch (weights patterns rate)
@@ -55,7 +46,7 @@
   (let ((err 0))
     (do-patterns (patterns p)
       (let ((i (if (listp p) (first p) p)))
-	(incf err (msum (m- (gemv weights (gemv weights i) :transa :trans) i)))))
+	(incf err (msum (map-matrix-square (m- (gemv weights (gemv weights i) :transa :trans) i))))))
     err))
 
 (defun gha (weights patterns params)
