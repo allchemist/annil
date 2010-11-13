@@ -153,4 +153,10 @@
         `((:iter . 300) (:eps . .35) (:mu . 1.0) (:verbosity . 3) (:recompute . 3) (:deriv-offset . 0.0)
 	  (:cc-iter . 1000) (:cc-mu . 1.0) (:cc-eps . 1.0) (:cc-candidates . 5)
 	  (:cc-recompute . 3) (:cc-thr . 0.0001) (:thr . 0.0001))))
+
+(defparameter *ccc* (make-cascor-classifier *pat* nil 'tanh-fn 0.8 20
+        `((:iter . 300) (:eps . 1.35) (:mu . 1.0) (:verbosity . 3) (:recompute . 2) (:deriv-offset . 0.01)
+	  (:cc-iter . 1000) (:cc-mu . 1.0) (:cc-eps . 2.0) (:cc-candidates . 5)
+	  (:cc-recompute . 3) (:cc-thr . 0.0001) (:thr . 0.0))))
+
 |#
