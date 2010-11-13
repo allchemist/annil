@@ -54,7 +54,7 @@
 		 :net (slp-train (make-random-slp (patterns-input-dim train-patterns)
 						  (patterns-output-dim train-patterns)
 						  act-fn)
-				 train-patterns test-patterns params 'quickprop-mix)
+				 train-patterns test-patterns params 'quickprop)
 		 :range classifier-range))
 
 

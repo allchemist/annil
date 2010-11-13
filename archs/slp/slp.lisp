@@ -20,8 +20,29 @@
 
 ;; evaluating
 
+(defun eval-layer (input weights act-fn &key dest)
+  (map-matrix (gemv weights input :dest dest) act-fn))
+
 (defun eval-slp (slp input &key dest)
-  (map-matrix (gemv (slp-weights slp) input :dest dest) (net-act-fn slp)))
+  (eval-layer input (slp-weights slp) (net-act-fn slp) :dest dest))
 
 (defmethod eval-network ((network slp) input)
   (eval-slp network input))
+
+;; error
+
+(defun sse-layer-error (pattern weights act-fn &key dest)
+  (square (e-norm (m- (eval-layer (first pattern) weights act-fn :dest dest) (second pattern)))))
+
+(defun sse-patterns-layer-error (patterns weights act-fn)
+  (let ((err 0)
+	(dest (make-matrix (patterns-output-dim patterns))))
+    (do-patterns (patterns p)
+      (incf err (sse-layer-error p weights act-fn :dest dest)))
+    (/ err (num-patterns patterns))))
+
+(defun slp-pattern-error (slp pattern)
+  (sse-layer-error pattern (slp-weights slp) (net-act-fn slp)))
+
+(defun slp-patterns-error (slp patterns)
+  (sse-patterns-layer-error patterns (slp-weights slp) (net-act-fn slp)))
