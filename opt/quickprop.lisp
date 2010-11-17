@@ -18,33 +18,32 @@
 	  (t (decf step (* eps s))))
     step))
 
+(defun qp-compute-errors (input output goal deriv-fn deriv-offset slopes)
+  (let* ((lgrad (m- (copy output) goal))
+	 (err (square (e-norm lgrad))))
+    (m* lgrad
+	(let ((deriv (map-matrix (copy output) deriv-fn)))
+	  (when deriv-offset (m+c deriv deriv-offset))
+	  deriv))
+    (m+ slopes (ger lgrad input))
+    err))
+
+;; params: :iter, :eps, :mu, :thr, :recomute, :verbosity
+
 (defun quickprop-sse (weights train-patterns test-patterns act-fn init-params)
   (flet ((w-like () (make-matrix-like weights)))
-    (let (
-	  ;; quickprop update space
-	  (delta-weights (w-like))
-	  (prev-delta-weights (w-like))
-	  (slopes (w-like))
-	  (prev-slopes (w-like))
-	  ;; evaluate space
-	  (out (make-matrix (patterns-output-dim train-patterns)))
-	  (lgrad (make-matrix (patterns-output-dim train-patterns)))
-	  ;; tmp bindings
-	  (epoch-err most-positive-fixnum)
-	  (prev-epoch-err 0)
-	  (prev-test-err 0)
-	  (test-err most-positive-fixnum)
-	  (num-patterns (num-patterns train-patterns))
-	  (act-fn-deriv (deriv-fn-name act-fn))
-	  (last-epoch 0)
-	  ;; params
+    (let ((prev-slopes (w-like))
 	  (params (copy-tree init-params))
-	  (deriv-offset (param init-params :deriv-offset))
-	  (decay (param init-params :decay))
+	  (num-patterns (num-patterns train-patterns))
+	  (epoch-err most-positive-fixnum)
+	  (prev-epoch-err nil)
+	  (test-err most-positive-fixnum)
+	  (prev-test-err nil)
+	  (epochs-passed 0)
+	  (verbosity (param init-params :verbosity))
 	  (recompute-limit (param init-params :recompute))
-	  (adaptivity (param init-params :adaptive))
-	  (verbosity (param init-params :verbosity)))
-      
+	  (act-fn-deriv (deriv-fn-name act-fn))
+	  (deriv-offset (param init-params :deriv-offset)))
       ;; parameters checking
       (assert (typep (param params :iter) 'fixnum) nil "Number of iterations not integer")
       (when (or (not (typep verbosity 'fixnum))
@@ -59,54 +58,35 @@
 	(setf (param params :mu) 2.0))
       (unless recompute-limit
 	(when (>= verbosity 2) (info "Using unlimited recomputation limit~%")))
-      (unless (not adaptivity) 
-	(when (>= verbosity 2) (info "Using adaptive update~%")))
       ;; main loop
       (dotimes (i (param params :iter))
-	(incf last-epoch)
-	(let* ((eps (/ (param params :eps) num-patterns))
-	       (mu (param params :mu))
-	       (shrink-factor (/ mu (+ mu 1.0)))
-	       (sum-delta-weights (unless adaptivity (w-like))))
-	  (setf prev-epoch-err epoch-err
-		epoch-err 0)
-	  (do-patterns-shuffle (train-patterns p)
-	    (eval-layer (first p) weights act-fn :dest out) ;; output in out
-	    (copy out lgrad)
-	    (m- lgrad (second p)) ;; residual in lgrad
-	    (incf epoch-err (square (e-norm lgrad)))
-	    (map-matrix out act-fn-deriv) ;; output deriv in out
-	    (when deriv-offset (m+c out deriv-offset))
-	    (m* lgrad out) ;; local gradient at lgrad
-	    (ger lgrad (first p) :dest slopes) ;; slopes
-	    
-	    (map-three-matrices delta-weights slopes prev-slopes
-				#'(lambda (d s ps)
-				    (quickprop-update d s ps eps mu shrink-factor)))
+	(incf epochs-passed)
+	(let ((slopes (w-like))
+	      (delta-weights (w-like))
+	      (eps (/ (param params :eps) num-patterns))
+	      (mu (param params :mu))
+	      (shrink-factor (/ (param params :mu) (1+ (param params :mu)))))
+	  
+	  (setf prev-epoch-err epoch-err)
+	  (setf epoch-err 0.0)
+	  (do-patterns (train-patterns p)
+	    (let ((out (eval-layer (first p) weights act-fn)))
+	      (incf epoch-err (qp-compute-errors (first p) out (second p) act-fn-deriv deriv-offset slopes))))
 
-	    (if adaptivity
-		(m+ weights delta-weights)
-		(m+ sum-delta-weights delta-weights))
-	    (when decay
-	      (map-two-matrices slopes weights
-				#'(lambda (s w)
-				    (+ s (* w decay)))))
-	    (copy slopes prev-slopes)
-	    (m- slopes slopes))
-	  (unless adaptivity
-	    (m+ weights (m/c sum-delta-weights (float num-patterns))))
+	  (map-three-matrices delta-weights slopes prev-slopes
+			      #'(lambda (d s ps)
+				  (quickprop-update d s ps eps mu shrink-factor)))
+	  (m+ weights delta-weights)
+	  (setf prev-slopes slopes)
 	  (setf epoch-err (/ epoch-err num-patterns))
-
 	  (when test-patterns
 	    (setf prev-test-err test-err
 		  test-err (sse-patterns-layer-error test-patterns weights act-fn)))
-
 	  (when (>= verbosity 3)
 	    (if test-patterns
 		(info "Current error: ~A, over test patterns: ~A~%" epoch-err test-err)
 		(info "Current error: ~A~%" epoch-err)))
-
-	  (when recompute-limit
+	   (when recompute-limit
 	    (if	(if test-patterns
 		    (<= prev-test-err (* (1+ (param params :thr)) test-err))
 		    (<= prev-epoch-err (* (1+ (param params :thr)) epoch-err)))
@@ -120,4 +100,4 @@
 	(if test-patterns
 	    (info "Final error: ~A, over test patterns: ~A~%" epoch-err test-err)
 	    (info "Final error: ~A~%" epoch-err)))
-      (values weights epoch-err last-epoch))))
+      (values weights epoch-err epochs-passed))))

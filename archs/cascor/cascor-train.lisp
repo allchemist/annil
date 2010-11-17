@@ -24,7 +24,7 @@
 	(incf corr (abs corr-val))))
     corr))
 
-;; params: cc-eps :cc-mu, :cc-iter, :cc-recompute
+;; params: cc-eps :cc-mu, :cc-iter, :cc-recompute, :cc-thr, :cc-candidates
 (defun cascor-train-hidden-quickprop (output-weights full-patterns act-fn params)
   (let ((N (num-patterns full-patterns))
 	(I (patterns-input-dim full-patterns))
@@ -75,7 +75,8 @@
 	  (m- delta-weights delta-weights)
 	  (m- slopes slopes)
 	  (m- prev-slopes prev-slopes)
-	  (princ ".")
+	  (when (= verbosity 2) (princ "."))
+	  (when (>= verbosity 3) (info "New candidate~%"))
 	  (map-matrix node-weights #'(lambda (x) (plain-rng -0.25 0.25)))
 	  (dotimes (e (param params :cc-iter))
 	    (let* ((eps (/ (param params :cc-eps) num-patterns input-dim))
@@ -104,7 +105,8 @@
 				      (quickprop-update d s ps eps mu shrink-factor)))	  
 	      (m- node-weights delta-weights)
 	      (copy slopes prev-slopes)
-
+	      (when (>= verbosity 3)
+		(info "corr: ~A~%" corr))
 	      (when recompute-limit
 		(if (<= corr (* prev-corr (1+ (param params :cc-thr))))
 		    (decf (param params :cc-recompute))
@@ -115,7 +117,7 @@
 	  (push (cons corr (copy node-weights)) candidates)))
       (terpri)
       (let ((best (first (sort candidates #'> :key #'car))))
-	(info "corr: ~A~%" (car best))
+	(info "Best corr: ~A~%" (car best))
 	(cdr best)))))
 
 (defun cascor-train-hidden (cascor patterns params)

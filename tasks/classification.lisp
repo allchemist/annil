@@ -70,3 +70,7 @@
 							(patterns-output-dim train-patterns) act-fn)
 				    train-patterns test-patterns hidden-layers params)
 		 :range classifier-range))
+
+(defun improve-cascor-classifier (classifier train-patterns test-patterns added-layers params)
+  (cascor-train (classifier-net classifier) train-patterns test-patterns added-layers params)
+  classifier)
