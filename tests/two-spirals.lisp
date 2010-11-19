@@ -20,7 +20,7 @@
 		patterns))))
     (nreverse patterns)))
 
-(defun visual-classify-2spirals (network patterns range)
+(defun visual-classify-2spirals (network patterns range &optional out)
   (let (c1+ c1- c2+ c2-)
     (dotimes (i (length patterns))
       (let ((p (get-pattern patterns i)))
@@ -33,6 +33,10 @@
     (map nil #'gplt:gplt-exec
 	 `((unset key)
 	   (unset color)
+	   ,@(if out
+		 `((set term png)
+		   (set out ,(write-to-string out)))
+		 `((set term x11)))
 	   (plot "'-' pt 4, '-' pt 4 ps 0.5, '-' pt 7, '-' pt 7 ps 0.5")))
     (dolist (pat (list c1+ c1- c2+ c2-))
       (dotimes (i (num-patterns pat))

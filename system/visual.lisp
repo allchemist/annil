@@ -1,11 +1,11 @@
 (in-package :annil)
 
-(defun visual-test-2d (network num in-range out-range classify-range)
+(defun visual-test-2d (network num in-range out-range classify-range &optional out)
   (let (class1 class2 unclassified)
     (dotimes (i num)
       (let* ((in (make-matrix 2 :initial-contents
-			      `(,(random-value (first in-range))
-				 ,(random-value (second in-range)))))
+			      `(,(random-value in-range)
+				,(random-value in-range))))
 	     (out (eval-network network in)))
 	(cond ((< (elt out 0) (+ (first out-range) classify-range))
 	       (push (list in out) class1))
@@ -16,6 +16,10 @@
     (map nil #'gplt:gplt-exec
 	 `((unset key)
 	   (unset color)
+	   ,@(if out
+		 `((set term png)
+		   (set out ,(write-to-string out)))
+		 `((set term x11)))
 	   (plot "'-' pt 7 ps 0.5, '-' pt 7 ps 0.5, '-' pt 7 ps 0.5")))
     (dolist (p class1)
       (gplt:gplt-exec `(,(elt (first p) 0) ,(elt (first p) 1))))

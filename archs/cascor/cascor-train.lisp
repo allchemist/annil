@@ -47,7 +47,23 @@
 	  (num-patterns (num-patterns full-patterns))
 	  (input-dim I)
 	  (recompute-limit (param params :cc-recompute))
+	  (cc-thr (or (param params :cc-thr) 0.0))
 	  (verbosity (param params :verbosity)))
+
+      ;; parameter checking
+      (assert (typep (param params :cc-iter) 'fixnum) nil "Number of iterations not integer")
+      (when (or (not (typep verbosity 'fixnum))
+		(minusp verbosity))
+	(setf verbosity 0))
+      (when (> verbosity 3) (setf verbosity 3))
+      (unless (param params :cc-eps)
+	(when (>= verbosity 3) (info "Using default parameter: eps = 1.0~%"))
+	(setf (param params :cc-eps) 1.0))
+      (unless (param params :cc-mu)
+	(when (>= verbosity 3) (info "Using default parameter: mu = 2.0~%"))
+	(setf (param params :cc-mu) 2.0))
+      (unless recompute-limit
+	(when (>= verbosity 3) (info "Using unlimited recomputation limit~%")))
 
       ;; cache out errors
       (dotimes (i O)
@@ -70,13 +86,13 @@
       ;; adjust
       (info "Training candidates: ")
       (dotimes (i (param params :cc-candidates))
-	(let ((corr (- most-negative-fixnum (param params :cc-thr) 1))
+	(let ((corr (- most-negative-fixnum cc-thr 1))
 	      (prev-corr most-negative-fixnum))
 	  (m- delta-weights delta-weights)
 	  (m- slopes slopes)
 	  (m- prev-slopes prev-slopes)
 	  (when (= verbosity 2) (princ "."))
-	  (when (>= verbosity 3) (info "New candidate~%"))
+	  (when (>= verbosity 3) (terpri) (info "New candidate~%"))
 	  (map-matrix node-weights #'(lambda (x) (plain-rng -0.25 0.25)))
 	  (dotimes (e (param params :cc-iter))
 	    (let* ((eps (/ (param params :cc-eps) num-patterns input-dim))
@@ -88,7 +104,7 @@
 		  (setf (aref node-vals j) (funcall act-fn (inner-prod (first p) node-weights)))))
 	      
 	      (setf prev-corr corr
-		    corr (/ (cascor-corr node-vals net-errors :signs-dest signs) sse-mult))
+		    corr (cascor-corr node-vals net-errors :signs-dest signs))
 	      
 	      (m- slopes slopes)
 	      (dotimes (j N)
@@ -98,7 +114,7 @@
 		      (incf lg (* (aref signs i)
 				  (aref (elt net-errors i) j)
 				  (funcall act-fn-deriv (aref node-vals j)))))
-		    (m+ slopes (m*c (copy (first p) tmp-I) (/ lg sse-mult))))))
+		    (m+ slopes (m*c (copy (first p) tmp-I) (/ lg sse))))))
 	      
 	      (map-three-matrices delta-weights slopes prev-slopes
 				  #'(lambda (d s ps)
@@ -108,12 +124,12 @@
 	      (when (>= verbosity 3)
 		(info "corr: ~A~%" corr))
 	      (when recompute-limit
-		(if (<= corr (* prev-corr (1+ (param params :cc-thr))))
+		(if (<= corr (* prev-corr (1+ cc-thr)))
 		    (decf (param params :cc-recompute))
 		    (when (< (param params :cc-recompute) recompute-limit)
-		      (incf (param params :cc-recompute)))))
-	      (when (minusp (param params :cc-recompute))
-		(return))))
+		      (incf (param params :cc-recompute))))
+		(when (minusp (param params :cc-recompute))
+		  (return)))))
 	  (push (cons corr (copy node-weights)) candidates)))
       (terpri)
       (let ((best (first (sort candidates #'> :key #'car))))
@@ -129,7 +145,8 @@
 	  (cascor-train-hidden-quickprop (cascor-output-weights cascor) full-patterns
 					 (cascor-act-fn cascor) (copy-tree params)))))
 
-(defun cascor-train (cascor train-patterns test-patterns nodes params)
+(defun cascor-train (cascor train-patterns test-patterns nodes params
+		     &optional test-fn)
   (let ((sse 0)
 	(last-epoch 0))
     (multiple-value-bind (w err ep)
@@ -147,5 +164,6 @@
 	  (cascor-train-output cascor train-patterns test-patterns params)
 	(setf sse err)
 	(incf last-epoch ep))
+      (when test-fn (funcall test-fn cascor n))
       (info "Epochs passed: ~A~%" last-epoch)))
   cascor)

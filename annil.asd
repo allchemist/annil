@@ -18,7 +18,8 @@
 	    ((:file "package")
 	     (:file "utils")
 	     (:file "patterns")
-	     (:file "network")))
+	     (:file "network")
+	     (:file "visual")))
    (:module opt
 	    :serial t
 	    :components

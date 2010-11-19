@@ -28,7 +28,7 @@
     (m+ slopes (ger lgrad input))
     err))
 
-;; params: :iter, :eps, :mu, :thr, :recomute, :verbosity
+;; params: :iter, :eps, :mu, :thr, :recomute, :deriv-offset, :verbosity
 
 (defun quickprop-sse (weights train-patterns test-patterns act-fn init-params)
   (flet ((w-like () (make-matrix-like weights)))
@@ -43,7 +43,8 @@
 	  (verbosity (param init-params :verbosity))
 	  (recompute-limit (param init-params :recompute))
 	  (act-fn-deriv (deriv-fn-name act-fn))
-	  (deriv-offset (param init-params :deriv-offset)))
+	  (deriv-offset (param init-params :deriv-offset))
+	  (thr (or (param init-params :thr) 0.0)))
       ;; parameters checking
       (assert (typep (param params :iter) 'fixnum) nil "Number of iterations not integer")
       (when (or (not (typep verbosity 'fixnum))
@@ -51,13 +52,13 @@
 	(setf verbosity 0))
       (when (> verbosity 3) (setf verbosity 3))
       (unless (param params :eps)
-	(when (>= verbosity 2) (info "Using default parameter: eps = 0.35~%"))
-	(setf (param params :eps) 0.35))
+	(when (>= verbosity 3) (info "Using default parameter: eps = 0.1~%"))
+	(setf (param params :eps) 0.1))
       (unless (param params :mu)
-	(when (>= verbosity 2) (info "Using default parameter: mu = 2.0~%"))
+	(when (>= verbosity 3) (info "Using default parameter: mu = 2.0~%"))
 	(setf (param params :mu) 2.0))
       (unless recompute-limit
-	(when (>= verbosity 2) (info "Using unlimited recomputation limit~%")))
+	(when (>= verbosity 3) (info "Using unlimited recomputation limit~%")))
       ;; main loop
       (dotimes (i (param params :iter))
 	(incf epochs-passed)
@@ -88,8 +89,8 @@
 		(info "Current error: ~A~%" epoch-err)))
 	   (when recompute-limit
 	    (if	(if test-patterns
-		    (<= prev-test-err (* (1+ (param params :thr)) test-err))
-		    (<= prev-epoch-err (* (1+ (param params :thr)) epoch-err)))
+		    (<= prev-test-err (* (1+ thr) test-err))
+		    (<= prev-epoch-err (* (1+ thr) epoch-err)))
 		(decf (param params :recompute))
 		(when (< (param params :recompute) recompute-limit)
 		  (incf (param params :recompute))))

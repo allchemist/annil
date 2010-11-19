@@ -64,13 +64,13 @@
 (defclass cascor-classifier (classifier)
   ((net :initarg :net :accessor classifier-net)))
 
-(defun make-cascor-classifier (train-patterns test-patterns act-fn classifier-range hidden-layers params)
+(defun make-cascor-classifier (train-patterns test-patterns act-fn classifier-range hidden-layers params &optional test-fn)
   (make-instance 'cascor-classifier
 		 :net (cascor-train (make-random-cascor (patterns-input-dim train-patterns)
 							(patterns-output-dim train-patterns) act-fn)
-				    train-patterns test-patterns hidden-layers params)
+				    train-patterns test-patterns hidden-layers params test-fn)
 		 :range classifier-range))
 
-(defun improve-cascor-classifier (classifier train-patterns test-patterns added-layers params)
-  (cascor-train (classifier-net classifier) train-patterns test-patterns added-layers params)
+(defun improve-cascor-classifier (classifier train-patterns test-patterns added-layers params &optional test-fn)
+  (cascor-train (classifier-net classifier) train-patterns test-patterns added-layers params test-fn)
   classifier)
