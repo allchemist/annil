@@ -1,6 +1,6 @@
 (in-package :annil)  
 
-(export '(classifier classify-patterns
+(export '(classifier classify-patterns classifier-range classifier-net
 	  cascor-classifier make-cascor-classifier improve-cascor-classifier))
 
 ;; general classifier
