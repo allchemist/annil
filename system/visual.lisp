@@ -1,5 +1,7 @@
 (in-package :annil)
 
+(export '(visual-test-2d))
+
 (defun visual-test-2d (network num in-range out-range classify-range &optional out)
   (let (class1 class2 unclassified)
     (dotimes (i num)

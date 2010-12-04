@@ -1,5 +1,13 @@
 (in-package :annil)
 
+(export '(cascor-hidden-weights cascor-output-weights cascor-input-size
+	  cascor-full-input cascor-output-nodes cascor-act-fn
+	  cascor make-cascor make-random-cascor
+	  cascor-hidden-num cascor-output-size cascor-hidden-node-value
+	  cascor-hidden-weights cascor-with-unconnected-node-p 
+	  cascor-insert-node cascor-connect-node cascor-eval-node cascor-eval-output
+	  cascor-full-patterns))
+
 (defclass cascor (network)
   ((hidden-weights :initarg :hidden-weights :accessor cascor-hidden-weights)
    (output-weights :initarg :output-weights :accessor cascor-output-weights)

@@ -1,6 +1,10 @@
 (in-package :annil)
 
+(export '(encode decode autoscale-codec autoscale-means autoscale-norms
+	  gha-codec make-gha-codec improve-gha-codec))
+
 (defgeneric encode (codec patterns))
+(defgeneric decode (codec patterns))
 
 ;; autoscale
 

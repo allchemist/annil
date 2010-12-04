@@ -1,5 +1,9 @@
 (in-package :annil)
 
+(export '(scale-to-edges patterns-scale-outputs autoscale-params
+	  autoscale-input undo-autoscale-input
+	  autoscale-patterns undo-autoscale-patterns))
+
 (defun scale-to-edges (vec edges &optional old-edges)
   (let ((nx (first edges))
 	(ny (second edges))

@@ -1,5 +1,7 @@
 (in-package :annil)
 
+(export '(cascor-train-output cascor-train-hidden-quickprop cascor-train-hidden cascor-train))
+
 ;; training output
 
 (defun cascor-train-output (cascor train-patterns test-patterns params)

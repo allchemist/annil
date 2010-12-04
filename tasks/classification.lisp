@@ -1,5 +1,8 @@
 (in-package :annil)  
 
+(export '(classifier classify-patterns
+	  cascor-classifier make-cascor-classifier improve-cascor-classifier))
+
 ;; general classifier
 
 (defclass classifier (tool)

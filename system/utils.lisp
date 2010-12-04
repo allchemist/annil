@@ -1,5 +1,9 @@
 (in-package :annil)
 
+(export '(info param lastcar deriv-fn-name annil-relative
+	  sigmoid-fn asigmoid-fn linear-fn tanh-fn
+	  sigmoid-fn-deriv asigmoid-fn-deriv linear-fn-deriv tanh-fn-deriv))
+
 (defun info (&rest body)
   (format *query-io* " ;; ")
   (eval `(format *query-io* ,@body)))

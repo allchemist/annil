@@ -1,5 +1,8 @@
 (in-package :annil)
 
+(export '(make-gha-weights gha-eval gha-eval-patterns gha-takeback gha-takeback-patterns
+	  gha-error gha))
+
 (defun make-gha-weights (input-dim output-dim)
   ;; init random gha weights
   (map-matrix (make-random-matrix (list output-dim input-dim))

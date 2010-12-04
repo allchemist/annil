@@ -1,5 +1,7 @@
 (in-package :annil)
 
+(export '(goldsect))
+
 (defun goldsect (func a b eps iter)
   (let* ((g1 (/ (- (sqrt 5) 1) 2))
          (g2 (- 1 g1))

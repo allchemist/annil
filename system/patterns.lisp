@@ -1,5 +1,11 @@
 (in-package :annil)
 
+(export '(matrix-patterns-p list-patterns-p liet-inputs-p single-pattern-p
+	  matrix-patterns matrix-inputs list-patterns list-inputs
+	  get-pattern copy-patterns num-patterns patterns-input-dim patterns-output-dim
+	  convert-patterns-to-list convert-patterns-to-matrix
+	  do-patterns do-patterns-shuffle pattern-error patterns-error))
+
 ;; pattern types
 
 ;; patterns can be input-output pairs, or simply inputs.
