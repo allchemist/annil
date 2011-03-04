@@ -1,13 +1,5 @@
 (in-package :annil)
 
-(export '(cascor-hidden-weights cascor-output-weights cascor-input-size
-	  cascor-full-input cascor-output-nodes cascor-act-fn
-	  cascor make-cascor make-random-cascor
-	  cascor-hidden-num cascor-output-size cascor-hidden-node-value
-	  cascor-hidden-weights cascor-with-unconnected-node-p 
-	  cascor-insert-node cascor-connect-node cascor-eval-node cascor-eval-output
-	  cascor-full-patterns))
-
 (defclass cascor (network)
   ((hidden-weights :initarg :hidden-weights :accessor cascor-hidden-weights)
    (output-weights :initarg :output-weights :accessor cascor-output-weights)
@@ -25,10 +17,13 @@
 		 :output-nodes (make-matrix output-size)
 		 :act-fn act-fn))
 
-(defun make-random-cascor (input-size output-size act-fn)
+(defun make-random-cascor (input-size output-size act-fn &optional nw-init)
   (let ((cascor (make-cascor input-size output-size act-fn)))
     ;; set random output weights
-    (m*c (map-matrix (cascor-output-weights cascor) #'simple-rng) 0.1)
+    (m*c (map-matrix (cascor-output-weights cascor) 'simple-rng) 0.1)
+    ;; apply Nguyen-Widrow rule if needed
+    ;; nw-init must be input ranges (a list of two)
+    (when nw-init (initialize-weights (cascor-output-weights cascor) nw-init))
     ;; setf bias (next to inputs in full-input)
     (setf (aref (cascor-full-input cascor) (cascor-input-size cascor)) 1.0)
     cascor))
@@ -76,7 +71,8 @@
     ;; till this node and output are unconnected,
     ;; only add weights for incoming connections for this node
     (setf (cascor-hidden-weights cascor)
-	  (nconc (cascor-hidden-weights cascor) (list (m*c (make-random-matrix len) 0.1))))
+	  (nconc (cascor-hidden-weights cascor)
+		 (list (m*c (make-random-matrix len) 0.1))))
     ;; and return the index of the node (0 for first hidden)
     (- len (cascor-input-size cascor) 1)))
 

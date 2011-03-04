@@ -1,0 +1,25 @@
+(in-package :annil)
+
+(defun nipals (X pc &key (max-iter 1000) (thr 0.00001))
+  (if pc
+      (assert (<= pc (dim1 X)) nil "Trying to extract too much principal components")
+      (setf pc (dim1 X)))
+  (let ((-T nil)
+	(-P nil))
+  (dotimes (i pc)
+    (let ((%t (col X i))
+	  (%p (make-matrix (dim1 X)))
+	  (t-old 0.0)
+	  (t-new 1000.0))
+      (dotimes (i max-iter)
+	(setf t-old t-new
+	      t-new (inner-prod %t %t))
+	(when (< (abs (- 1.0 (/ t-old t-new))) thr)
+	  (return))
+	(m/c (gemv X %t :transa :trans :dest %p) t-new)
+	(normalize %p)
+	(m/c (gemv X %p :dest %t) (inner-prod %p %p)))
+      (ger %t %p :dest X :alpha -1.0) ;; ?
+      (push %t -T)
+      (push %p -P)))
+    (values -T -P X)))

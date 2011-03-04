@@ -18,21 +18,23 @@
 	  (t (decf step (* eps s))))
     step))
 
-(defun qp-compute-errors (input output goal deriv-fn deriv-offset slopes)
-  (let* ((lgrad (m- (copy output) goal))
-	 (err (square (e-norm lgrad))))
-    (m* lgrad
-	(let ((deriv (map-matrix (copy output) deriv-fn)))
-	  (when deriv-offset (m+c deriv deriv-offset))
-	  deriv))
-    (m+ slopes (ger lgrad input))
-    err))
+(defun quickprop (w slope-fn err-fn train-patterns test-patterns params)
+  (let ((restarts (or (param params :restarts) 0))
+	(err most-positive-fixnum)
+	(epochs 0))
+    (decf (param params :verbosity))
+    (dotimes (i (1+ restarts))
+      (multiple-value-bind (cur-w cur-err cur-epochs)
+	  (quickprop-single w slope-fn err-fn train-patterns test-patterns params)
+	(setf err cur-err)
+	(incf epochs cur-epochs)))
+    (incf (param params :verbosity))
+    (values w err epochs)))
 
-;; params: :iter, :eps, :mu, :thr, :recomute, :deriv-offset, :verbosity
-
-(defun quickprop-sse (weights train-patterns test-patterns act-fn init-params)
+(defun quickprop-single (weights slopes-fn err-fn train-patterns test-patterns init-params)
   (flet ((w-like () (make-matrix-like weights)))
     (let ((prev-slopes (w-like))
+	  (delta-weights (w-like))
 	  (params (copy-tree init-params))
 	  (num-patterns (num-patterns train-patterns))
 	  (epoch-err most-positive-fixnum)
@@ -42,11 +44,9 @@
 	  (epochs-passed 0)
 	  (verbosity (param init-params :verbosity))
 	  (recompute-limit (param init-params :recompute))
-	  (act-fn-deriv (deriv-fn-name act-fn))
-	  (deriv-offset (param init-params :deriv-offset))
 	  (thr (or (param init-params :thr) 0.0)))
       ;; parameters checking
-      (assert (typep (param params :iter) 'fixnum) nil "Number of iterations not integer")
+      (assert (typep (param params :epochs) 'fixnum) nil "Number of iterations not integer")
       (when (or (not (typep verbosity 'fixnum))
 		(minusp verbosity))
 	(setf verbosity 0))
@@ -60,20 +60,15 @@
       (unless recompute-limit
 	(when (>= verbosity 3) (info "Using unlimited recomputation limit~%")))
       ;; main loop
-      (dotimes (i (param params :iter))
+      (dotimes (i (param params :epochs))
 	(incf epochs-passed)
 	(let ((slopes (w-like))
-	      (delta-weights (w-like))
 	      (eps (/ (param params :eps) num-patterns))
 	      (mu (param params :mu))
 	      (shrink-factor (/ (param params :mu) (1+ (param params :mu)))))
 	  
-	  (setf prev-epoch-err epoch-err)
-	  (setf epoch-err 0.0)
-	  (do-patterns (train-patterns p)
-	    (let ((out (eval-layer (first p) weights act-fn)))
-	      (incf epoch-err (qp-compute-errors (first p) out (second p) act-fn-deriv deriv-offset slopes))))
-
+	  (setf prev-epoch-err epoch-err
+		epoch-err (nth-value 1 (funcall slopes-fn weights slopes)))
 	  (map-three-matrices delta-weights slopes prev-slopes
 			      #'(lambda (d s ps)
 				  (quickprop-update d s ps eps mu shrink-factor)))
@@ -82,23 +77,23 @@
 	  (setf epoch-err (/ epoch-err num-patterns))
 	  (when test-patterns
 	    (setf prev-test-err test-err
-		  test-err (sse-patterns-layer-error test-patterns weights act-fn)))
+		  test-err (funcall err-fn weights)))
 	  (when (>= verbosity 3)
 	    (if test-patterns
-		(info "Current error: ~A, over test patterns: ~A~%" epoch-err test-err)
-		(info "Current error: ~A~%" epoch-err)))
+		(info "Current result: ~A, over test patterns: ~A~%" epoch-err test-err)
+		(info "Current result: ~A~%" epoch-err)))
 	   (when recompute-limit
-	    (if	(if test-patterns
-		    (<= prev-test-err (* (1+ thr) test-err))
-		    (<= prev-epoch-err (* (1+ thr) epoch-err)))
-		(decf (param params :recompute))
-		(when (< (param params :recompute) recompute-limit)
-		  (incf (param params :recompute))))
-	    (when (minusp (param params :recompute))
-	      (when (>= verbosity 1) (info "Stagnant at ~A epoch~%" i))
-	      (return)))))
+	     (if (if test-patterns
+		     (<= prev-test-err (* (1+ thr) test-err))
+		     (<= prev-epoch-err (* (1+ thr) epoch-err)))
+		 (decf (param params :recompute))
+		 (when (< (param params :recompute) recompute-limit)
+		   (incf (param params :recompute))))
+	     (when (minusp (param params :recompute))
+	       (when (>= verbosity 1) (info "Stagnant at ~A epoch~%" i))
+	       (return)))))
       (when (>= verbosity 1)
 	(if test-patterns
-	    (info "Final error: ~A, over test patterns: ~A~%" epoch-err test-err)
-	    (info "Final error: ~A~%" epoch-err)))
+	    (info "Final result: ~A, over test patterns: ~A~%" epoch-err test-err)
+	    (info "Final result: ~A~%" epoch-err)))
       (values weights epoch-err epochs-passed))))

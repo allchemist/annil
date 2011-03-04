@@ -1,7 +1,5 @@
 (in-package :annil)
 
-(export '(network doc eval-network print-network tool))
-
 (defclass network ()
   ((doc :accessor doc)))
 

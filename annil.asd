@@ -6,7 +6,7 @@
 (defsystem annil
   :name "annil"
   :description "Artificial Neural Networks in Lisp"
-  :version "0.8"
+  :version "0.9"
   :author "Khokhlov Ivan"
   :licence "BSD"
   :depends-on (sb-math gplt cl-jpeg)
@@ -19,32 +19,30 @@
 	     (:file "utils")
 	     (:file "patterns")
 	     (:file "network")
-	     (:file "visual")))
+	     (:file "initialize")))
    (:module opt
 	    :serial t
 	    :components
-	    ((:file "univariate")
+	    ((:file "sse")
+	     (:file "rprop")
 	     (:file "quickprop")))
    (:module archs
 	    :serial t
 	    :components
-	    ((:module slp
-		      :components
-		      ((:file "slp")
-		       (:file "slp-train")))
-	     (:module cascor
+	    ((:module cascor
 		      :serial t
 		      :components
 		      ((:file "cascor")
 		       (:file "cascor-train")))
-	     (:module hebbian
+	     (:module pca
 		      :components
-		      ((:file "gha")))))
+		      ((:file "autoscale")
+		       (:file "svd")
+		       (:file "nipals")))))
    (:module tasks
 	    :components
-	    ((:file "preproc")
-	     (:file "classification")
-	     (:file "coding" :depends-on ("preproc"))))
+	    ((:file "codec")
+	     (:file "classify")))
    (:module tests
 	    :components
 	    ((:file "two-spirals")
