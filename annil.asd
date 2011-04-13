@@ -29,7 +29,12 @@
    (:module archs
 	    :serial t
 	    :components
-	    ((:module cascor
+	    ((:module slp
+		      :serial t
+		      :components
+		      ((:file "slp")
+		       (:file "slp-train")))
+	     (:module cascor
 		      :serial t
 		      :components
 		      ((:file "cascor")

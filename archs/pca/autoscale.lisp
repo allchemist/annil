@@ -1,5 +1,7 @@
 (in-package :annil)
 
+(export '(autoscale-params autoscale-input undo-autoscale-input autoscale undo-autoscale))
+
 (defun autoscale-params-from-matrix (train-set)
   ;; get means and norms from train set
   (let ((dim0 (dim0 train-set))

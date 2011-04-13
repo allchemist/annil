@@ -1,46 +1,77 @@
 (in-package :annil)
 
-(defclass classifier ()
-  ((range :initarg :range :accessor classifier-range)))
+(export '(classify simple-classifier simple-preproc-classifier classifier-range classifier-net
+	  classifier-codec boost-classifier boost-classifiers boost-output-ranges
+	  make-cascor-classifier improve-cascor-classifier))
 
-(defun classify-patterns (classifier patterns &optional verbosity)
-  (let ((correct nil)
-	(incorrect nil)
-	(thr (classifier-range classifier)))
-    (do-patterns (patterns p)
-      (let ((out (eval-network (classifier-net classifier) (first p))))
-	(if (< (abs (ammax (m- (copy out) (second p)))) thr)
-	    (push (list (copy out) (second p)) correct)
-	    (push (list (copy out) (second p)) incorrect))))
-    (case verbosity
-      (:none nil)
-      (:stat (format *query-io* "Correctly classified: ~A patterns,~%Incorrectly classified or undecided: ~A patterns~%" (length correct) (length incorrect)))
-      (:full
-	 (progn
-	   (format *query-io* "Correct:~%")
-	   (dolist (l correct)
-	     (print-matrix (first l) :dest *query-io*))
-	   (format *query-io* "~%Incorrect:~%")
-	   (dolist (l incorrect)
-	     (print-matrix (first l) :dest *query-io*))
-	   (format *query-io* "~%Correctly classified: ~A patterns,~%Incorrectly classified or undecided: ~A patterns~%" (length correct) (length incorrect)))))
-    (list (length correct) (length incorrect))))
+(defgeneric classify (classifier patterns))
 
-;; cascor classifier
+;; single-network classifier
 
-(defclass cascor-classifier (classifier)
-  ((net :initarg :net :accessor classifier-net)))
+(defclass simple-classifier ()
+  ((range :initarg :range :accessor classifier-range)
+   (net :initarg :net :accessor classifier-net)))
 
-(defmethod eval-network ((network cascor-classifier) input)
+(defmethod eval-network ((network simple-classifier) input)
   (eval-network (classifier-net network) input))
 
-(defun make-cascor-classifier (train-patterns test-patterns act-fn classify-range hidden-layers params cc-params)
-  (make-instance 'cascor-classifier
-		 :net (cascor-train (make-random-cascor (patterns-input-dim train-patterns)
-							(patterns-output-dim train-patterns) act-fn)
-				    train-patterns test-patterns hidden-layers params cc-params)
+(defun %classify-simple (classifier patterns)
+  (let (correct incorrect)
+    (do-patterns (patterns p)
+      (let ((out (eval-network classifier (first p))))
+	(if (< (abs (ammax (m- (copy out) (second p))))
+	       (classifier-range classifier))
+	    (push (list out (second p)) correct)
+	    (push (list out (second p)) incorrect))))
+    (list correct incorrect)))
+
+(defmethod classify ((classifier simple-classifier) patterns)
+  (%classify-simple classifier patterns))
+
+;; preproc classifier
+
+(defclass simple-preproc-classifier (simple-classifier)
+  ((codec :initarg :codec :accessor classifier-codec)))
+
+(defmethod eval-network ((classifier simple-preproc-classifier) input)
+  (eval-network (classifier-net classifier)
+		(encode (classifier-codec classifier) (copy input))))
+
+(defmethod classify ((classifier simple-preproc-classifier) patterns)
+  (%classify-simple classifier (encode (classifier-codec classifier) (copy-patterns patterns))))
+
+;; boost classifier
+
+(defclass boost-classifier ()
+  ((classifiers :initarg :classifiers :accessor boost-classifiers)
+   (output-ranges :initarg :output-ranges :accessor boost-output-ranges)))
+
+(defmethod eval-network ((network boost-classifier) input)
+  (let ((ranges (boost-output-ranges network)))
+    (m+c
+     (reduce #'m*
+	     (loop for c in (boost-classifiers network) collect
+	       (m-c (eval-network c input) (first ranges))))
+     (first ranges))))
+
+(defmethod classify ((classifier boost-classifier) patterns)
+  (%classify-simple classifier patterns))
+
+;; KLUDGE!
+(defmethod classifier-range ((classifier boost-classifier))
+  (classifier-range (first (boost-classifiers classifier))))
+
+
+;; classifier creating
+
+(defun make-cascor-classifier (patterns test-part act-fn classify-range hidden-layers params cc-params)
+  (make-instance 'simple-classifier
+		 :net (cascor-train (make-random-cascor (patterns-input-dim patterns)
+							(patterns-output-dim patterns) act-fn)
+				    patterns test-part hidden-layers params cc-params)
 		 :range classify-range))
 
-(defun improve-cascor-classifier (classifier train-patterns test-patterns added-layers params cc-params)
-  (cascor-train (classifier-net classifier) train-patterns test-patterns added-layers params cc-params)
+(defun improve-cascor-classifier (classifier patterns test-part added-layers params cc-params)
+  (cascor-train (classifier-net classifier) patterns test-part added-layers params cc-params)
   classifier)
+

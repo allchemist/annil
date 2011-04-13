@@ -1,8 +1,11 @@
 (in-package :annil)
 
-(defun info (&rest body)
-  (format *query-io* " ;; ")
-  (eval `(format *query-io* ,@body)))
+(export '(info sigmoid-fn asigmoid-fn sigmoid-fn-deriv asigmoid-fn-deriv linear-fn linear-fn-deriv tanh-fn tanh-fn-deriv
+	  param lastcar random-shuffle random-shuffle-list random-elt maphash-collect annil-relative deriv-fn-name))
+
+(defmacro info (&rest body)
+  `(progn (format *standard-output* " ;; ")
+	  (format *standard-output* ,@body)))
 
 ;; activation functions
 
@@ -29,13 +32,27 @@
   (declare (ignore fn))
   1.0)
   
+(declaim (ftype (function (single-float) single-float) tanh-fn tanh-fn-deriv))
 (defun tanh-fn (x)
+  (declare (optimize speed (safety 0))
+	   (type single-float x))
   (cond ((< x -10.0) -1.0)
 	((> x 10.0) 1.0)
-	(t (* 1.7159 (tanh (* 2/3 x))))))
+	(t (* 1.7159 (the single-float (tanh (* 0.66 x)))))))
 
 (defun tanh-fn-deriv (fn)
+  (declare (optimize speed (safety 0))
+	   (type single-float fn))
   (* 0.38852304 (- 1.7159 fn) (+ 1.7159 fn)))
+
+(defun gauss-fn (val)
+  (exp (- (* (square (- val 0.1)) 0.5))))
+
+(defun gauss-kernel (v1 v2)
+  (exp (- (* (square (e-norm (m- (copy v1) v2))) 0.5))))
+
+(defun hpoly-kernel (v1 v2 &optional (deg 2))
+  (expt (inner-prod v1 v2) deg))
 
 ;; network parameters
 

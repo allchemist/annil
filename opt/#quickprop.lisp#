@@ -79,7 +79,7 @@
 ;;; ========================================================
 	  (setf prev-epoch-err epoch-err
 		epoch-err (/ (nth-value 1 (funcall slopes-fn weights slopes)) num-patterns))
-	  (when (< epoch-err best-err)
+	  (when (< (if test-patterns test-err epoch-err) best-err)
 	    (setf best-err (if test-patterns test-err epoch-err))
 	    (copy weights best-weights))
 	  (map-three-matrices delta-weights slopes prev-slopes

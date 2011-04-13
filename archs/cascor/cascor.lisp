@@ -1,5 +1,10 @@
 (in-package :annil)
 
+(export '(cascor cascor-hidden-weights cascor-output-weights cascor-input-size cascor-output-nodes
+	  cascor-full-input cascor-act-fn make-cascor make-random-cascor cascor-hidden-num cascor-output-size
+	  cascor-hidden-num-value cascor-node-weights cascor-without-unconnected-node-p cascor-insert-node
+	  cascor-connect-node cascor-eval-node eval-cascor-full-input cascor-eval-output cascor-full-patterns))
+
 (defclass cascor (network)
   ((hidden-weights :initarg :hidden-weights :accessor cascor-hidden-weights)
    (output-weights :initarg :output-weights :accessor cascor-output-weights)
@@ -20,7 +25,7 @@
 (defun make-random-cascor (input-size output-size act-fn &optional nw-init)
   (let ((cascor (make-cascor input-size output-size act-fn)))
     ;; set random output weights
-    (m*c (map-matrix (cascor-output-weights cascor) 'simple-rng) 0.1)
+    (normalize (map-matrix (cascor-output-weights cascor) 'simple-rng))
     ;; apply Nguyen-Widrow rule if needed
     ;; nw-init must be input ranges (a list of two)
     (when nw-init (initialize-weights (cascor-output-weights cascor) nw-init))
@@ -72,7 +77,7 @@
     ;; only add weights for incoming connections for this node
     (setf (cascor-hidden-weights cascor)
 	  (nconc (cascor-hidden-weights cascor)
-		 (list (m*c (make-random-matrix len) 0.1))))
+		 (list (normalize (make-random-matrix len)))))
     ;; and return the index of the node (0 for first hidden)
     (- len (cascor-input-size cascor) 1)))
 
@@ -126,7 +131,10 @@
 ;; KLUDGE
 
 (defun cascor-full-patterns (cascor patterns)
-  (let ((full-patterns nil))
-    (do-patterns (patterns p)
-      (push (list (copy (eval-cascor-full-input cascor (first p))) (second p)) full-patterns))
-    (nreverse full-patterns)))
+  (when patterns
+    (let* ((len (num-patterns patterns))
+	   (full-patterns (make-array len)))
+      (dotimes (i len full-patterns)
+	(let ((p (get-pattern patterns i)))
+	  (setf (svref full-patterns i)
+		(list (copy (eval-cascor-full-input cascor (first p))) (second p))))))))

@@ -18,7 +18,7 @@
 	  (push (list (make-matrix 2 :initial-contents `(,(- x) ,(- y)))
 		      (make-matrix 1 :initial-element (second output-ranges)))
 		patterns))))
-    (nreverse patterns)))
+    (coerce (nreverse patterns) 'simple-vector)))
 
 (defun visual-classify-2spirals (network patterns range &optional out)
   (let (c1+ c1- c2+ c2-)

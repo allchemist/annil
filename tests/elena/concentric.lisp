@@ -8,4 +8,4 @@
 		 (push (list (make-matrix 2 :initial-contents `(,(read str) ,(read str)))
 			     (make-matrix 1 :initial-contents `(,(coerce (read str) 'single-float))))
 		       patterns))))
-    (nreverse patterns)))
+    (coerce (nreverse patterns) 'simple-vector)))

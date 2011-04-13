@@ -1,12 +1,6 @@
 (in-package :annil)
 
-(defun linspace (xmin xmax points)
-  (let* ((vec (make-matrix points))
-	 (type (array-element-type vec)))
-    (loop for idx from 0 below points
-	  for val from xmin to xmax by (/ (- xmax xmin) (1- points))
-	  do (setf (aref vec idx) (coerce val type)))
-    vec))
+(export '(initialize-weights))
 
 (defun initialize-weights (weights input-range)
   (let ((H (dim0 weights))

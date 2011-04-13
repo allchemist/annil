@@ -29,7 +29,7 @@
 	 patterns)
 	(info "Loaded ~A~A~A.png~%" path (car s) i)))
     (info "Generated ~A samples.~%" (length patterns))
-    (nreverse patterns)))
+    (coerce (nreverse patterns) 'simple-vector)))
 
 ;; visual
 
