@@ -67,7 +67,6 @@
     (values w err epochs)))
 
 (defun rprop-single (w slope-fn err-fn train-patterns test-patterns init-params)
-  (declare (optimize debug))
   ;; init
   ;; {ps}=0, {d}=d0
   (let ((s (make-matrix-like w))
@@ -118,7 +117,7 @@
       (setf err-1 err
 	    err (/ (nth-value 1 (funcall slope-fn w s)) num-patterns))
       (m/c s (* err num-patterns))
-      (when (< (if test-patterns err test-err) best-err)
+      (when (< (if test-patterns test-err err) best-err)
 	(setf best-err (if test-patterns test-err err))
 	(copy w best-weights))
       ;; for each weight

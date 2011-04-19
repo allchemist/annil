@@ -53,6 +53,7 @@
 	  (recompute-limit (param init-params :recompute))
 	  (thr (or (param init-params :thr) 0.0))
 	  (recompute-flag nil)
+	  (decay (param init-params :decay))
 	  (best-weights (w-like))
 	  (best-err (float most-positive-fixnum)))
       ;; parameters checking
@@ -79,13 +80,14 @@
 ;;; ========================================================
 	  (setf prev-epoch-err epoch-err
 		epoch-err (/ (nth-value 1 (funcall slopes-fn weights slopes)) num-patterns))
-	  (when (< epoch-err best-err)
+	  (when (< (if test-patterns test-err epoch-err) best-err)
 	    (setf best-err (if test-patterns test-err epoch-err))
 	    (copy weights best-weights))
 	  (map-three-matrices delta-weights slopes prev-slopes
 			      #'(lambda (d s ps)
 				  (quickprop-update d s ps eps mu shrink-factor)))
 	  (m+ weights delta-weights)
+	  (when decay (m*c weights (- 1.0 decay)))
 	  (setf prev-slopes slopes)
 ;;; ========================================================
 	  (when test-patterns
