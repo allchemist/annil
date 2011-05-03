@@ -58,7 +58,7 @@
 		       (/ (+ (* err npats)
 			     (* test-set-mix-ratio (funcall err-fn w)))
 			  (+ npats (* test-set-mix-ratio test-npats)))
-		       (funcall err-fn w))))
+		       (/ (funcall err-fn w) test-npats))))
 	    (dotimes (i (param params :epochs))
 	      (incf epochs-passed)
 	      (let ((slopes (w-like)))
