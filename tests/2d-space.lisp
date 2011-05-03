@@ -1,7 +1,7 @@
 (in-package :annil)
 
 (defun display-2d-patterns (patterns &optional ranges out)
-  (let ((outputs (remove-duplicates (mapcar #'(lambda (p) (aref (second p) 0))  patterns))))
+  (let ((outputs (remove-duplicates (map 'list #'(lambda (p) (aref (second p) 0))  patterns))))
     (gplt:gplt-restart)
     (map nil #'gplt:gplt-exec
 	 `((unset key)

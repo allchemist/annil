@@ -38,12 +38,12 @@
 	   (type single-float x))
   (cond ((< x -10.0) -1.0)
 	((> x 10.0) 1.0)
-	(t (* 1.7159 (the single-float (tanh (* 0.66 x)))))))
+	(t (* 1.71591 (the single-float (tanh (* 0.6666666 x)))))))
 
 (defun tanh-fn-deriv (fn)
   (declare (optimize speed (safety 0))
 	   (type single-float fn))
-  (* 0.38852304 (- 1.7159 fn) (+ 1.7159 fn)))
+  (- 1.1439399 (* 0.38852075 fn fn)))
 
 (defun gauss-fn (val)
   (exp (- (* (square (- val 0.1)) 0.5))))
@@ -53,6 +53,10 @@
 
 (defun hpoly-kernel (v1 v2 &optional (deg 2))
   (expt (inner-prod v1 v2) deg))
+
+(defun heaviside (val)
+  (if (plusp val)
+      1.0 0.0))
 
 ;; network parameters
 
@@ -66,6 +70,16 @@
   params)
 
 ;; misc utils
+
+
+(defun iota (num)
+  (let ((iota (make-matrix num :element-type 'fixnum)))
+    (dotimes (i num)
+      (setf (aref iota i) i))
+    iota))
+
+(define-modify-macro extend-vector ()
+  (lambda (x) (adjust-array x (1+ (length x)))))
 
 (defun lastcar (list) (car (last list)))
 

@@ -38,7 +38,7 @@
 		   (set out ,(write-to-string out)))
 		 `((set term x11)))
 	   (plot "'-' pt 4, '-' pt 4 ps 0.5, '-' pt 7, '-' pt 7 ps 0.5")))
-    (dolist (pat (list c1+ c1- c2+ c2-))
+    (dolist (pat (mapcar #'(lambda (p) (coerce p 'vector)) (list c1+ c1- c2+ c2-)))
       (dotimes (i (num-patterns pat))
 	(let ((p (get-pattern pat i)))
 	  (gplt:gplt-exec `(,(elt (first p) 0) ,(elt (first p) 1)))))

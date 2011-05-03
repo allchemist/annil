@@ -16,15 +16,18 @@
 	    :serial t
 	    :components
 	    ((:file "package")
+	     (:file "decls")
 	     (:file "utils")
 	     (:file "patterns")
 	     (:file "network")
+	     (:file "visual")
 	     (:file "initialize")))
    (:module opt
 	    :serial t
 	    :components
-	    ((:file "sse")
-	     (:file "rprop")
+	    ((:file "regression")
+	     (:file "sse")
+	     ;; (:file "rprop")
 	     (:file "quickprop")))
    (:module archs
 	    :serial t
@@ -34,14 +37,17 @@
 		      :components
 		      ((:file "slp")
 		       (:file "slp-train")))
-	     (:module cascor
+	     (:module cascade
 		      :serial t
 		      :components
-		      ((:file "cascor")
-		       (:file "cascor-train")))
+		      ((:file "cascade")
+		       (:file "cascade-train")
+		       (:file "cascade-train-c2"))
+		      )
 	     (:module pca
 		      :components
 		      ((:file "autoscale")
+		       (:file "centering")
 		       (:file "svd")
 		       (:file "nipals")))))
    (:module tasks

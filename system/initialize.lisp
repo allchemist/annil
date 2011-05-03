@@ -1,8 +1,8 @@
 (in-package :annil)
 
-(export '(initialize-weights))
+(export '(seed-weights nw-seed-weights))
 
-(defun initialize-weights (weights input-range)
+(defun nw-seed-weights (weights &optional (input-range '(-1.0 1.0)))
   (let ((H (dim0 weights))
 	(I (dim1 weights)))
     (let ((w-mag (* 0.7 (expt H (/ I))))
@@ -23,3 +23,5 @@
 		       (aref b-linspace ii))))))))
   weights)
 
+(defun seed-weights (weights &optional (input-range '(-1.0 1.0)))
+  (m*c (map-matrix weights #'(lambda (w) (apply #'plain-rng input-range))) 0.5))

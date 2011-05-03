@@ -2,6 +2,7 @@
 
 (export '(encode decode chain-codec codecs-in-chain make-chain-codec
 	  autoscale-codec make-autoscale-codec autoscale-means autoscale-norms
+	  centering-codec make-centering-codec centering-means
 	  pca-codec pca-loadings pca-scores make-pca-codec reduce-pca-codec
 	  store-pca-codec restore-pca-codec))
 
@@ -47,6 +48,20 @@
 (defun make-autoscale-codec (patterns)
   (let ((params (autoscale-params patterns)))
     (make-instance 'autoscale-codec :means (first params) :norms (second params))))
+
+;; centering
+
+(defclass centering-codec ()
+  ((means :initarg :means :accessor centering-means)))
+
+(defmethod encode ((codec centering-codec) patterns)
+  (centering patterns (centering-means codec)))
+
+(defmethod decode ((codec centering-codec) patterns)
+  (undo-centering patterns (centering-means codec)))
+
+(defun make-centering-codec (patterns)
+  (make-instance 'centering-codec :means (centering-params patterns)))
 
 ;; pca
 

@@ -2,7 +2,7 @@
 
 (export '(classify simple-classifier simple-preproc-classifier classifier-range classifier-net
 	  classifier-codec boost-classifier boost-classifiers boost-output-ranges
-	  make-cascor-classifier improve-cascor-classifier))
+	  make-cascade-classifier improve-cascade-classifier))
 
 (defgeneric classify (classifier patterns))
 
@@ -76,14 +76,14 @@
 
 ;; classifier creating
 
-(defun make-cascor-classifier (patterns test-part act-fn classify-range hidden-layers params cc-params)
+(defun make-cascade-classifier (patterns test-part act-fn classify-range hidden-num params cc-params)
   (make-instance 'simple-classifier
-		 :net (cascor-train (make-random-cascor (patterns-input-dim patterns)
-							(patterns-output-dim patterns) act-fn)
-				    patterns test-part hidden-layers params cc-params)
+		 :net (cascade-train (make-cascade-network (patterns-input-dim patterns)
+							   (patterns-output-dim patterns) act-fn nil)
+				     patterns test-part hidden-num params cc-params)
 		 :range classify-range))
 
 (defun improve-cascor-classifier (classifier patterns test-part added-layers params cc-params)
-  (cascor-train (classifier-net classifier) patterns test-part added-layers params cc-params)
+  (cascade-train (classifier-net classifier) patterns test-part added-layers params cc-params)
   classifier)
 
