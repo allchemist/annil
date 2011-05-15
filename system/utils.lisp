@@ -36,8 +36,8 @@
 (defun tanh-fn (x)
   (declare (optimize speed (safety 0))
 	   (type single-float x))
-  (cond ((< x -10.0) -1.0)
-	((> x 10.0) 1.0)
+  (cond ((< x -10.0) -1.71591)
+	((> x 10.0) 1.71591)
 	(t (* 1.71591 (the single-float (tanh (* 0.6666666 x)))))))
 
 (defun tanh-fn-deriv (fn)

@@ -41,9 +41,15 @@
 		      :serial t
 		      :components
 		      ((:file "cascade")
+		       (:file "cascade-prune")
 		       (:file "cascade-train")
 		       (:file "cascade-train-c2"))
 		      )
+	     (:module prune
+		      :serial t
+		      :components
+		      ((:file "obd")
+		       (:file "obs")))
 	     (:module pca
 		      :components
 		      ((:file "autoscale")

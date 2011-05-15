@@ -14,7 +14,7 @@
       (let ((p (get-pattern-safe patterns i)))
 	;; calculate local grad and error
 	(scopy (cascade-eval-output cascade (first p)) lgrad)
-	;(m- lgrad (second p))
+	;;(m- lgrad (second p))
 	(saxpy (second p) lgrad -1.0)
 	(%incf err (%square (e-norm lgrad)))
 	;;;; count error bits
@@ -34,7 +34,8 @@
 					    (funcall deriv-fn y)))))))
 	;; modify slopes
 ;	(m+ slopes (ger lgrad (first p))))) ; !!! FIX IT with sger
-	(sger slopes lgrad (first p) 1.0 :noconj)))
+;	(sger slopes lgrad (first p) 1.0 :noconj))
+	(m+ slopes (cascade-out-slopes cascade lgrad :values (first p)))))
     (values slopes err)))
 
 (defun cascade-compute-out-errors (cascade patterns params)
@@ -90,12 +91,25 @@
 	       (multiple-value-bind (w c e)
 		   (cascade-train-output cascade patterns
 					 (cond ((eq test-part :auto)
-						(/ (sqrt (* 1.5 (cascade-num-weights cascade)))))
+						(/ (* 2 (sqrt (dim0 (cascade-out-weights cascade))))))
 					       ((numberp test-part) test-part))
 					 params)
 		 (declare (ignore w))
 		 (setf best-crit c)
 		 (incf last-epoch e))
+	       (when (param params :prune-thr)
+		 (let ((pruned-num (cascade-prune-outputs cascade patterns params)))
+		   (unless (zerop pruned-num)
+		     (when (>= verbosity 2) (info "Output connections pruned: ~A~%" pruned-num))
+		     (multiple-value-bind (w c e)
+			 (cascade-train-output cascade patterns
+					       (cond ((eq test-part :auto)
+						      (/ (* 2 (sqrt (dim0 (cascade-out-weights cascade))))))
+						     ((numberp test-part) test-part))
+					       params)
+		       (declare (ignore w))
+		       (setf best-crit c)
+		       (incf last-epoch e)))))
 	       (display)
 	       (when classify-range
 		 (multiple-value-bind (sum bits)
@@ -113,11 +127,20 @@
 	  (multiple-value-bind (w c e)
 	      (cascade-train-hidden-c2 cascade patterns (param cc-params :candidates)
 				       (cond ((eq test-part :auto)
-					      (/ (sqrt (* 2 (cascade-num-weights cascade)))))
+					      (/ (* 2 (sqrt (cascade-nunits cascade)))))
 					     ((numberp test-part) test-part))
 				       cc-params)
 	    (declare (ignore c e))
-	    (cascade-install-hidden-c2 cascade w))
+	    (if (param cc-params :prune-thr)
+		(multiple-value-bind (pruned-num -w -conns)
+		    (cascade-prune-cand cascade w patterns cc-params)
+		  (if (zerop pruned-num)
+		      (cascade-install-hidden-c2 cascade w)
+		      (progn
+			(when (>= verbosity 2) (info "Candidate connections pruned: ~A~%" pruned-num))
+			(cascade-install-hidden-c2 cascade -w -conns))))
+		(cascade-install-hidden-c2 cascade w)))
+	  ;(when (eq (param params :hess-method) :diag) (setf (param params :hess-method) :direct))
 	  (when (train-outputs) (return))
 	  (when (>= verbosity 2) (info "Epochs passed: ~A~%" last-epoch))))))
   cascade)

@@ -100,8 +100,8 @@
 				 (%fvref errs o)))))))
     cand-score))
 
-(defun cascade-install-hidden-c2 (cascade cand)
-  (cascade-insert-node cascade)
+(defun cascade-install-hidden-c2 (cascade cand &optional cand-conns)
+  (cascade-insert-node cascade cand-conns)
   (let* ((noutputs (cascade-noutputs cascade))
 	 (ow (cascade-out-weights cascade))
 	 (conns (cascade-out-conns cascade))

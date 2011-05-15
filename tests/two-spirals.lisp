@@ -45,3 +45,12 @@
       (gplt:gplt-exec '(e)))
 
     (gplt:gplt-display)))
+
+(defun test-2spirals ()
+  (cascade-train (make-cascade-network 2 1 'tanh-fn nil) (genpat-2spirals) nil 20
+		 '((:eps . 0.35) (:mu . 2.0) (:epochs . 100) (:thr . 1.e-6) (:recompute . 30) (:verbosity . 2)
+		   (:prune-thr . 0.05) (:classify-range . 0.8) (:test-set-mix-ratio . 3))
+		 '((:eps . 0.35) (:mu . 2.0) (:epochs . 100) (:thr . 1.e-6) (:recompute . 30) (:verbosity . 0)
+		   (:candidates . 10) (:test-set-mix-ratio . 2) (:epochs-handicap . 50))
+		 (lambda (n)
+		   (visual-test-2d n 15000 6.5 '(-1.0 1.0) 0.9))))
