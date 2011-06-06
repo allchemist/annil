@@ -124,3 +124,10 @@
 
 (defun deriv-fn-name (fn-name)
   (intern (concatenate 'string (string fn-name) "-DERIV") :annil))
+
+(declaim (inline flatten-array-idx))
+(defun flatten-array-idx (dim1 i j)
+  (+ (* dim1 i) j))
+
+(defun toss-coin ()
+  (if (zerop (random 2)) t nil))

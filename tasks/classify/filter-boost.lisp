@@ -1,0 +1,47 @@
+(in-package :annil)
+
+(export '(fboost-classifier fboost-c1 fboost-c2 fboost-c3 fboost-preproc
+	  make-fboost-classifier))
+
+(defclass fboost-classifier ()
+  ((c1 :initarg :c1 :accessor fboost-c1)
+   (c2 :initarg :c2 :accessor fboost-c2)
+   (c3 :initarg :c3 :accessor fboost-c3)
+   (preproc :initarg :preproc :accessor classifier-preproc)))
+
+(defmethod eval-network ((classifier fboost-classifier) input)
+  (when (fboost-preproc classifier)
+    (setf input (encode (fboost-preproc classifier) input)))
+  (m/c (m+ (m+ (copy (eval-network (fboost-c1 classifier) input))
+	       (eval-network (fboost-c2 classifier) input))
+	   (eval-network (fboost-c2 classifier) input))
+       3.0))
+
+(defun fboost-filter-patterns-2 (classifier patterns)
+  (let (new-patterns
+	(state (toss-coin)))
+    (do-patterns-safe (patterns p)
+      (unless (eq state (nth-value 1 (classify classifier p)))
+	(push p new-patterns)
+	(setf state (toss-coin))))
+    (info "Patters num: ~A~%" (length new-patterns))
+    (coerce new-patterns 'simple-vector)))
+
+(defun fboost-filter-patterns-3 (classifier1 classifier2 patterns)
+  (let (new-patterns)
+    (do-patterns-safe (patterns p)
+      (unless (eq (nth-value 1 (classify classifier1 p))
+		  (nth-value 1 (classify classifier2 p)))
+	(push p new-patterns)))
+    (info "Patters num: ~A~%" (length new-patterns))
+    (coerce new-patterns 'simple-vector)))
+
+(defun make-fboost-classifier (patterns train-single-fn preproc)
+  (let (c1 c2 c3 p2 p3)
+    (setf patterns (encode preproc patterns)
+	  c1 (funcall train-single-fn patterns)
+	  p2 (fboost-filter-patterns-2 c1 patterns)
+	  c2 (funcall train-single-fn p2)
+	  p3 (fboost-filter-patterns-3 c1 c2 patterns)
+	  c3 (funcall train-single-fn p3))
+    (make-instance 'fboost-classifier :preproc preproc :c1 c1 :c2 c2 :c3 c3)))

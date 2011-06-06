@@ -77,44 +77,34 @@
     cascade))
 
 (defun cascade-install-input (cascade input)
-  (copy input (cascade-values cascade)))
+  (scopy input (cascade-values cascade)))
 
 (defun cascade-node-conns (cascade node)
+  (declare (optimize speed (safety 0)))
   (%svref (cascade-conns cascade) node))
 
-#|(defun cascade-cand-slopes (cascade cand conns lgrad &key values dest)
-  (when (not values) (setf values (cascade-values cascade)))
-    (if dest
-	(assert (= (dim0 dest) (dim0 conns))
-		nil "Improper slopes dest dimensions")
-	(setf dest (make-matrix (dim0 conns))))
-  (%dotimes (i (dim0 conns))
-    (%incf (%fvref dest i)
-	   (%* lgrad (%fvref values (%ivref conns i)))))
-  dest)|#
-
 (defun cascade-out-slopes (cascade lgrad &key values dest)
+  (declare (optimize speed (safety 0)))
   (let* ((out-conns (cascade-out-conns cascade))
 	 (off 0)
-	 (dim0 (apply #'+ (map 'list #'dim0 out-conns)))
-	 (dim1 (dim0 lgrad)))
+	 (dim1 (dim0 lgrad))
+	 (dim (* (apply #'+ (map 'list #'dim0 out-conns)) dim1)))
     (when (not values) (setf values (cascade-values cascade)))
     (if dest
-	(assert (and (= (dim1 dest) dim0)
-		     (= (dim0 dest) dim1))
+	(assert (= (dim0 dest) dim)
 		nil "Improper slopes dest dimensions")
-	(setf dest (make-matrix `(,dim0 ,dim1))))
+	(setf dest (make-matrix dim)))
     (%dotimes (i (cascade-noutputs cascade))
       (let ((conns (%svref out-conns i))
 	    (v (%fvref lgrad i)))
 	(%dotimes (c (dim0 conns))
-	  (%incf (aref dest (+ c off) i)
-		 (%* v (%fvref values (%ivref conns c)))))		   
+	  (%incf (%fvref dest (flatten-array-idx dim1 (+ c off) i))
+		 (%* v (%fvref values (%ivref conns c)))))	   
 	(incf off (dim0 conns))))
     dest))
-  
 
 (defun cascade-node-weights (cascade node)
+  (declare (optimize speed (safety 0)))
   (%svref (cascade-weights cascade) node))
 
 (defun cascade-num-weights (cascor)
@@ -123,17 +113,11 @@
 	 (map 'list #'dim0 (remove nil (cascade-weights cascor)))))
 
 (defun cascade-node-value (cascade node)
+  (declare (optimize speed (safety 0)))
   (%fvref (cascade-values cascade) node))
 
-(defun cascade-out-node-weights (cascade output)
-  (let* ((conns (cascade-out-conns cascade))
-	 (start 0))
-    (%dotimes (i output)
-      (incf start (dim0 (svref conns i))))
-    (subseq (cascade-out-weights cascade)
-	    start (+ start (dim0 (%svref conns output))))))
-
 (defun cascade-eval-node (cascade node)
+  (declare (optimize speed (safety 0)))
   (if (< node (1+ (cascade-ninputs cascade)))
       (cascade-node-value cascade node)
       (let ((act-fn (cascade-act-fn cascade)))
@@ -143,11 +127,14 @@
 		(values (cascade-values cascade))
 		(val 0.0))
 	    (%dotimes (i (length conns))
-	      (%incf val (%* (%fvref weights i) (%fvref values (%ivref conns i)))))
-	    (%setf (%fvref (cascade-values cascade) n) (funcall act-fn val))))
+	      (%incf val (%* (%fvref weights i)
+			     (%fvref values (%ivref conns i)))))
+	    (%setf (%fvref (cascade-values cascade) n)
+		   (funcall act-fn val))))
 	(cascade-node-value cascade node))))
 
 (defun cascade-eval-output (cascade &optional values)
+  (declare (optimize speed (safety 0)))
   (let ((out-weights (cascade-out-weights cascade))
 	(out-conns (cascade-out-conns cascade))
 	(off 0)
@@ -174,6 +161,14 @@
   (cascade-eval network input))
 
 ;; pruning
+
+(defun cascade-out-node-weights (cascade output)
+  (let* ((conns (cascade-out-conns cascade))
+	 (start 0))
+    (%dotimes (i output)
+      (incf start (dim0 (svref conns i))))
+    (subseq (cascade-out-weights cascade)
+	    start (+ start (dim0 (%svref conns output))))))
 
 (defun cascade-prune-node-connection (cascade input node)
   (let* ((conns (svref (cascade-conns cascade) node))

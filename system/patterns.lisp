@@ -4,9 +4,10 @@
 	  array-2d-p matrix-patterns-p svector-patterns-p svector-inputs-p single-pattern-p single-input-p
 	  patterns-dispatch patterns-type get-pattern get-pattern-safe do-patterns do-patterns-safe do-patterns-shuffle
 	  patterns-num patterns-input-dim patterns-output-dim convert-patterns-to-svector convert-patterns-to-matrix
-	  store-patterns restore-patterns copy-patterns))
+	  store-patterns restore-patterns copy-patterns patterns-with-weights-p pattern-weight normalize-patterns-weights))
 
-(declaim (inline array-2d-p matrix-patterns-p svector-patterns-p svector-inputs-p single-pattern-p single-input-p))
+(declaim (inline array-2d-p matrix-patterns-p svector-patterns-p svector-inputs-p single-pattern-p single-input-p
+		 pattern-weight %build-pattern))
 
 ;; patterns types:
 ;; matrix-inputs: simply 2d matrix
@@ -29,13 +30,13 @@
 ;; single-pattern: list of two vectors
 (defun single-pattern-p (pattern)
   (and (listp pattern)
-       (= (length pattern) 2)
-       (vectorp (first pattern))))
+       (let ((len (length pattern)))
+	 (or (= len 3)
+	     (and (= len 2)
+		  (vectorp (first pattern)))))))
 
 (defun single-input-p (pattern)
   (typep pattern '(and vector (not simple-vector))))
-
-
 
 (deftype single-pattern () '(satisfies single-pattern-p))     ; (# #)
 (deftype single-input () '(satisfies single-input-p))         ; #
@@ -61,36 +62,77 @@
 		     'single-input   'single-pattern
 		     'matrix-inputs  'matrix-patterns
 		     'svector-inputs 'svector-patterns))
+
+(defun patterns-with-weights-p (patterns)
+  (patterns-dispatch (patterns)
+		     nil (= (length patterns) 3)
+		     nil (= (length patterns) 3)
+		     nil (= (length (svref patterns 0)) 3)))
+
+(defun %build-pattern (i o w)
+  (if w
+      (list i o w)
+      (list i o)))
+
+(defun pattern-weight (single-pattern)
+  (when (= (length single-pattern) 3)
+    (elt single-pattern 2)))
+
 (defun get-pattern (patterns index)
   (patterns-dispatch (patterns)
 		     (copy patterns)
-		     (mapcar #'copy patterns)
+		     (%build-pattern (first patterns)
+				     (second patterns)
+				     (pattern-weight patterns))
 		     (row patterns index)
-		     (list (row (first patterns) index)
-			   (row (second patterns) index))
+		     (%build-pattern (row (first patterns) index)
+				     (row (second patterns) index)
+				     (when (= (length patterns) 3)
+				       (list (aref (third patterns) index))))
 		     (copy (svref patterns index))
-		     (map 'list #'copy (svref patterns index))))
+		     (let ((p (svref patterns index)))
+		       (%build-pattern (first p) (second p) (pattern-weight p)))))
 
 (defun get-pattern-safe (patterns index)
-  (if (svector-patterns-p patterns)
+  (if (typep patterns 'simple-vector)
       (svref patterns index)
       (patterns-dispatch (patterns)
 			 patterns
 			 patterns
 			 (row patterns index)
-			 (list (row (first patterns) index)
-			       (row (second patterns) index))
-			 (svref patterns index)
-			 (svref patterns index))))
+			 (%build-pattern (row (first patterns) index)
+					 (row (second patterns) index)
+					 (when (= (length patterns) 3)
+					   (list (aref (third patterns) index))))
+			 nil nil)))
 
 (defun copy-patterns (patterns)
   (patterns-dispatch (patterns)
 		     (copy patterns)
-		     (mapcar #'copy patterns)
+		     (%build-pattern (first patterns)
+				     (second patterns)
+				     (pattern-weight patterns))
 		     (copy patterns)
 		     (mapcar #'copy patterns)
-		     (map 'vector #'copy patterns)
-		     (map 'vector #'(lambda (p) (mapcar #'copy p)) patterns)))
+		     (map 'simple-vector #'copy patterns)
+		     (map 'simple-vector
+			  (lambda (p) (%build-pattern (first p) (second p) (pattern-weight p)))
+			  patterns)))
+
+(defun normalize-patterns-weights (patterns)
+  (patterns-dispatch (patterns)
+		     (error "Weights normalization for single input makes no sense")
+		     (error "Weights normalization for single pattern makes no sense")
+		     (error "This patterns contain only inputs, weights normalization makes no sense")
+		     (progn (m/c (third patterns) (mean (third patterns))) patterns)
+		     (error "This patterns contain only inputs, weights normalization makes no sense")
+		     (let ((sum 0.0))
+		       (dotimes (i (length patterns))
+			 (incf sum (elt (svref patterns i) 2)))
+		       (dotimes (i (length patterns))
+			 (let ((p (svref patterns i)))
+			   (setf (elt p 2) (/ (elt p 2) sum))))
+		       patterns)))
 
 (defun num-patterns (patterns)
   (patterns-dispatch (patterns)
@@ -145,15 +187,19 @@
 							   (patterns-input-dim patterns)))))
 			(dotimes (i (num-patterns patterns) new-inputs)
 			  (setf (row new-inputs i) (get-pattern patterns i))))
-		      (let ((new-patterns
-			     (list (make-matrix (list (num-patterns patterns)
-						      (patterns-input-dim patterns)))
-				   (make-matrix (list (num-patterns patterns)
-						      (patterns-output-dim patterns))))))
+		      (let* ((num-patterns (num-patterns patterns))
+			     (weights-p (patterns-with-weights-p patterns))
+			     (new-patterns
+			      (cons (make-matrix (list num-patterns (patterns-input-dim patterns)))
+				    (cons (make-matrix (list num-patterns (patterns-output-dim patterns)))
+					  (when weights-p (list (make-matrix num-patterns)))))))
 			(dotimes (i (num-patterns patterns) new-patterns)
 			  (let ((pat (get-pattern patterns i)))
 			    (setf (row (first new-patterns) i) (first pat))
-			    (setf (row (second new-patterns) i) (second pat)))))))
+			    (setf (row (second new-patterns) i) (second pat))
+			    (when weights-p (setf (aref (third new-patterns) i) (third pat))))))))
+
+
 
 (defmacro do-patterns ((patterns p) &body body)
   `(dotimes (i (num-patterns ,patterns))
@@ -170,68 +216,3 @@
      (dolist (i lst)
        (let ((,p (get-pattern ,patterns i)))
 	 ,@body))))
-
-(defun pattern-error (output-fn pattern)
-  (msum (map-matrix-square (m- (funcall output-fn (first pattern)) (second pattern)))))
-
-(defun patterns-error (output-fn patterns)
-  (let ((sum 0))
-    (do-patterns (patterns p)
-      (incf sum (pattern-error output-fn p)))
-    (/ sum (num-patterns patterns))))
-
-
-
-(defun store-patterns (patterns path)
-  (with-open-file (s path
-		     :direction :output
-		     :if-exists :supersede
-		     :if-does-not-exist :create)
-    (princ "annil patterns storage" s)
-    (patterns-dispatch (patterns)
-		       (progn (print "single-input")
-			      (store-matrix patterns s t))
-		       (progn (print "single-pattern")
-			      (store-matrix (first patterns) s t)
-			      (store-matrix (second patterns) s t))
-		       (progn (print "matrix-inputs")
-			      (store-matrix patterns s t))
-		       (progn (print "matrix-patterns")
-			      (store-matrix patterns s t)
-			      (store-matrix patterns s t))
-		       (progn (print "list-inputs" s)
-			      (print (num-patterns patterns) s)
-			      (dotimes (i (length patterns))
-				(store-matrix (svref patterns i) s t)))
-		       (progn (print "list-patterns" s)
-			      (print (num-patterns patterns) s)
-			      (dotimes (i (num-patterns patterns))
-				(let ((p (svref patterns i)))
-				  (store-matrix (first p) s t)
-				  (store-matrix (second p) s t)))))))
-
-(defun restore-patterns (path)
-  (with-open-file (s path)
-    (assert (string= (read-line s) "annil patterns storage") nil "Not a patterns storage")
-    (let ((type (read-line s)))
-      (cond ((string= type "single-input")
-	     (restore-matrix s))
-	    ((string= type "single-pattern")
-	     (list (restore-matrix s)
-		   (restore-matrix s)))
-	    ((string= type "matrix-inputs")
-	     (restore-matrix s))
-	    ((string= type "matrix-patterns")
-	     (list (restore-matrix s)
-		   (restore-matrix s)))
-	    ((string= type "list-inputs")
-	     (let* ((len (read s))
-		    (pats (make-array len)))
-	       (dotimes (i len pats)
-		 (setf (svref pats i) (restore-matrix s)))))
-	    ((string= type "list-patterns")
-	     (let* ((len (read s))
-		    (pats (make-array len)))
-	       (dotimes (i len pats)
-		 (setf (svref pats i) (list (restore-matrix s) (restore-matrix s))))))
-	    (t (error "Unknown patterns type"))))))

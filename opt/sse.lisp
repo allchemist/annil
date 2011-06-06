@@ -4,28 +4,55 @@
   (let ((lgrad (make-matrix (patterns-output-dim patterns)))
 	(out (make-matrix (patterns-output-dim patterns)))
 	(err 0.0)
-	(deriv-offset (param params :deriv-offset)))
-    (do-patterns-safe (patterns p)
-      ;; calculate local grad and error
-      (map-matrix (gemv weights (first p) :dest out) act-fn)
-      (m- (copy out lgrad) (second p))
-      (%incf err (%square (e-norm lgrad)))
-      ;;;; count error bits
-      ;;(when classify-range
-      ;;  (%dotimes (i (dim0 lgrad))
-      ;;    (when (> (abs (%fvref lgrad i)) classify-range)
-      ;;      (incf err-bits))))
-      ;; calculate slopes
-      (map-two-matrices lgrad out
-			#'(lambda (x y)
-			    (declare (type single-float x y))
-			    (the single-float
-			      (%* x (if deriv-offset
-					(%+ (funcall deriv-fn y) deriv-offset)
-					(funcall deriv-fn y))))))
-      ;; modify slopes
-      (m+ slopes (ger lgrad (first p))))
+	(deriv-offset (param params :deriv-offset))
+	(weights-p (patterns-with-weights-p patterns))
+	(npats (float (num-patterns patterns))))
+    (dotimes (i (num-patterns patterns))
+      (let ((p (get-pattern-safe patterns i)))
+	;; calculate local grad and error
+	(map-matrix (gemv weights (first p) :dest out) act-fn)
+	(m- (copy out lgrad) (second p))
+	(when weights-p (m*c lgrad (%* (elt p 2) npats)))
+	(%incf err (%square (e-norm lgrad)))
+        ;;;; count error bits
+	;;(when classify-range
+	;;  (%dotimes (i (dim0 lgrad))
+	;;    (when (> (abs (%fvref lgrad i)) classify-range)
+	;;      (incf err-bits))))
+	;; calculate slopes
+	(map-two-matrices lgrad out
+			  #'(lambda (x y)
+			      (declare (type single-float x y))
+			      (the single-float
+				(%* x (if deriv-offset
+					  (%+ (funcall deriv-fn y) deriv-offset)
+					  (funcall deriv-fn y))))))
+	;; modify slopes
+	(m+ slopes (ger lgrad (first p)))))
     (values slopes err)))
+
+(defun sse-compute-errors (weights patterns act-fn params)
+  (declare (ignore params))
+  (let ((out (make-matrix (patterns-output-dim patterns)))
+	(err 0.0)
+	(weights-p (patterns-with-weights-p patterns))
+	(npats (float (num-patterns patterns))))
+    (dotimes (i (num-patterns patterns))
+      (let ((p (get-pattern-safe patterns i)))
+	;; calculate error
+	(map-matrix (gemv weights (first p) :dest out) act-fn)
+	(m- out (second p))
+	(if weights-p
+	    (%incf err (%* (%square (%* (elt p 2) npats))
+			   (%square (e-norm out))))
+	    (%incf err (%square (e-norm out))))
+        ;;;; count error bits
+	;;(when classify-range
+	;;  (dotimes (i (dim0 out))
+	;;    (when (< (aref out i) classify-range)
+	;;      (incf err-bits)))))
+	))
+    err))
 
 (defun optimize-sse (weights patterns test-part act-fn params)
   (let ((deriv-fn (deriv-fn-name act-fn))
@@ -44,18 +71,3 @@
       (optimize-with-restarts weights
         method #'slopes-fn #'err-fn train test params))))
 
-(defun sse-compute-errors (weights patterns act-fn params)
-  (declare (ignore params))
-  (let ((out (make-matrix (patterns-output-dim patterns)))
-	(err 0.0))
-    (do-patterns-safe (patterns p)
-      ;; calculate error
-      (map-matrix (gemv weights (first p) :dest out) act-fn)
-      (m- out (second p))
-      (%incf err (%square (e-norm out)))
-      ;;;; count error bits
-      ;;(when classify-range
-      ;;  (dotimes (i (dim0 out))
-      ;;    (when (< (aref out i) classify-range)
-      ;;      (incf err-bits)))))
-      err)))

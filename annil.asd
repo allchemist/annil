@@ -59,7 +59,12 @@
    (:module tasks
 	    :components
 	    ((:file "codec")
-	     (:file "classify")))
+	     (:module classify
+		      :serial t
+		      :components
+		      ((:file "classifier")
+		       (:file "filter-boost")
+		       (:file "infoboost")))))
    (:module tests
 	    :components
 	    ((:file "two-spirals")

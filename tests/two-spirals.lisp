@@ -46,11 +46,16 @@
 
     (gplt:gplt-display)))
 
-(defun test-2spirals ()
-  (cascade-train (make-cascade-network 2 1 'tanh-fn nil) (genpat-2spirals) nil 20
-		 '((:eps . 0.35) (:mu . 2.0) (:epochs . 100) (:thr . 1.e-6) (:recompute . 30) (:verbosity . 2)
-		   (:prune-thr . 0.05) (:classify-range . 0.8) (:test-set-mix-ratio . 3))
-		 '((:eps . 0.35) (:mu . 2.0) (:epochs . 100) (:thr . 1.e-6) (:recompute . 30) (:verbosity . 0)
-		   (:candidates . 10) (:test-set-mix-ratio . 2) (:epochs-handicap . 50))
-		 (lambda (n)
-		   (visual-test-2d n 15000 6.5 '(-1.0 1.0) 0.9))))
+(defun demo-2spirals (&optional (patterns (genpat-2spirals)))
+  (info "Patterns number: ~A~%" (num-patterns patterns))
+  (make-instance
+   'simple-classifier
+   :net (cascade-train (make-cascade-network 2 1 'tanh-fn nil) patterns nil 10
+		       '((:eps . 0.35) (:mu . 2.0) (:epochs . 100) (:thr . 1.e-6) (:recompute . 30) (:verbosity . 2)
+			 (:classify-range . 0.8) (:test-set-mix-ratio . 3))
+		       '((:eps . 0.35) (:mu . 2.0) (:epochs . 100) (:thr . 1.e-6) (:recompute . 30) (:verbosity . 0)
+			 (:candidates . 5) (:test-set-mix-ratio . 2) (:epochs-handicap . 40))
+		       (lambda (n)
+			 (visual-test-2d n 15000 6.5 '(-1.0 1.0) 0.9)))
+   :range 0.8))
+

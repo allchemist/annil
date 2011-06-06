@@ -1,10 +1,7 @@
 (in-package :annil)
 
 (export '(classify simple-classifier simple-preproc-classifier classifier-range classifier-net
-	  classifier-codec boost-classifier boost-classifiers boost-output-ranges
-	  make-cascade-classifier improve-cascade-classifier))
-
-(defgeneric classify (classifier patterns))
+	  classifier-codec make-cascade-classifier improve-cascade-classifier))
 
 ;; single-network classifier
 
@@ -15,7 +12,7 @@
 (defmethod eval-network ((network simple-classifier) input)
   (eval-network (classifier-net network) input))
 
-(defun %classify-simple (classifier patterns)
+(defun %classify-patterns (classifier patterns)
   (let (correct incorrect)
     (do-patterns (patterns p)
       (let ((out (eval-network classifier (first p))))
@@ -25,8 +22,14 @@
 	    (push (list out (second p)) incorrect))))
     (list correct incorrect)))
 
-(defmethod classify ((classifier simple-classifier) patterns)
-  (%classify-simple classifier patterns))
+(defun classify (classifier patterns)
+  (cond ((single-input-p patterns) (eval-network classifier patterns))
+	((single-pattern-p patterns)
+	 (let ((out (eval-network classifier (first patterns))))
+	   (values out
+		   (< (abs (ammax (m- (copy out) (second patterns))))
+		      (classifier-range classifier)))))
+	(t (%classify-patterns classifier patterns))))
 
 ;; preproc classifier
 
@@ -36,43 +39,6 @@
 (defmethod eval-network ((classifier simple-preproc-classifier) input)
   (eval-network (classifier-net classifier)
 		(encode (classifier-codec classifier) (copy input))))
-
-(defmethod classify ((classifier simple-preproc-classifier) patterns)
-  (%classify-simple classifier patterns))
-
-;; boost classifier
-
-(defclass boost-classifier ()
-  ((classifiers :initarg :classifiers :accessor boost-classifiers)
-   (output-ranges :initarg :output-ranges :accessor boost-output-ranges)))
-
-(defun %boost-result (results ranges)
-  (flet ((dist (limit)
-	   (expt (apply #'*
-			(mapcar #'(lambda (x)
-				    (expt (+ (abs (- limit x)) 0.05)
-					  1.3))
-				results))
-		 0.66)))
-    (+ (/ (- (second ranges)
-	     (first ranges))
-	  (1+ (/ (dist (second ranges))
-		 (dist (first ranges)))))
-       (first ranges))))
-
-(defmethod eval-network ((network boost-classifier) input)
-  (let* ((ranges (boost-output-ranges network))
-	 (results (loop for c in (boost-classifiers network)
-			collect (aref (eval-network c input) 0))))
-    (make-matrix 1 :initial-element (%boost-result results ranges))))
-
-(defmethod classify ((classifier boost-classifier) patterns)
-  (%classify-simple classifier patterns))
-
-;; KLUDGE!
-(defmethod classifier-range ((classifier boost-classifier))
-  (classifier-range (first (boost-classifiers classifier))))
-
 
 ;; classifier creating
 

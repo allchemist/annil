@@ -9,7 +9,7 @@
   (let ((step 0.0))
     (cond ((minusp d)
 	   (when (plusp s)
-	     (%decf step (%* eps s))) 
+	     (%decf step (%* eps s)))
 	   (if (>= s (%* shrink-factor ps))
 	       (%incf step (%* mu d))
 	       (progn (%incf step (%* d (%/ s (%- ps s))))
@@ -25,13 +25,12 @@
     step))
 
 (defun quickprop (weights slopes-fn err-fn train-patterns test-patterns init-params)
-  (declare (inline slopes-fn err-fn))
   (flet ((w-like () (make-matrix-like weights)))
     (let ((large-val (float most-positive-fixnum)))
       (let ((prev-slopes (w-like))
 	    (delta-weights (w-like))
 	    (best-weights (w-like))
-	    
+
 	    (npats (num-patterns train-patterns))
 	    (test-npats (num-patterns test-patterns))
 	    (err large-val) (err-1 0.0)
@@ -74,8 +73,8 @@
 		  (setf best-crit crit)
 		  (copy weights best-weights))
 		(smap-three-matrices delta-weights slopes prev-slopes
-				     #'(lambda (d s ps)
-					 (quickprop-update d s ps eps mu shr rrate)))
+				     (lambda (d s ps)
+				       (quickprop-update d s ps eps mu shr rrate)))
 		(m+ weights delta-weights)
 		(setf prev-slopes slopes)
 		(when test-patterns
