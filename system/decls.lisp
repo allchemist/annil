@@ -1,47 +1,50 @@
 (in-package :annil)
 
+(defmacro tthe (value-type form)
+  `(sb-ext:truly-the ,value-type ,form))
+
 (defmacro %incf (place &optional (delta 1.0))
-  `(the single-float (incf (the single-float ,place)
-			   (the single-float ,delta))))
+  `(tthe single-float (incf (the single-float ,place)
+			    (tthe single-float ,delta))))
 
 (defmacro %decf (place &optional (delta 1.0))
-  `(the single-float (decf (the single-float ,place)
-			   (the single-float ,delta))))
+  `(tthe single-float (decf (the single-float ,place)
+			    (tthe single-float ,delta))))
 
 (defmacro %setf (place &optional (delta 1.0))
-  `(the single-float (setf (the single-float ,place)
-			   (the single-float ,delta))))
+  `(tthe single-float (setf (the single-float ,place)
+			    (tthe single-float ,delta))))
 
 (defmacro %* (&rest args)
-  `(the single-float
-     (* ,@(mapcar #'(lambda (x) `(the single-float ,x)) args))))
+  `(tthe single-float
+	 (* ,@(mapcar #'(lambda (x) `(tthe single-float ,x)) args))))
 
 (defmacro %+ (&rest args)
-  `(the single-float
-     (+ ,@(mapcar #'(lambda (x) `(the single-float ,x)) args))))
+  `(tthe single-float
+	 (+ ,@(mapcar #'(lambda (x) `(tthe single-float ,x)) args))))
 
 (defmacro %- (&rest args)
-  `(the single-float
-     (- ,@(mapcar #'(lambda (x) `(the single-float ,x)) args))))
+  `(tthe single-float
+	 (- ,@(mapcar #'(lambda (x) `(tthe single-float ,x)) args))))
 
 (defmacro %/ (&rest args)
-  `(the single-float
-     (/ ,@(mapcar #'(lambda (x) `(the single-float ,x)) args))))
+  `(tthe single-float
+	 (/ ,@(mapcar #'(lambda (x) `(tthe single-float ,x)) args))))
 
 (defmacro %square (num)
-  `(the single-float (square (the single-float ,num))))
+  `(tthe single-float (square (tthe single-float ,num))))
 
 (defmacro %fvref (a i)
-  `(the single-float (aref (the (simple-array single-float (*)) ,a) (the fixnum ,i))))
+  `(the single-float (aref (the (simple-array single-float (*)) ,a) (tthe fixnum ,i))))
 
 (defmacro %ivref (a i)
-  `(the fixnum (aref (the (simple-array fixnum (*)) ,a) (the fixnum ,i))))
+  `(the fixnum (aref (the (simple-array fixnum (*)) ,a) (tthe fixnum ,i))))
 
 (defmacro %svref (a i)
-  `(svref (the simple-vector ,a) (the fixnum ,i)))
+  `(svref (the simple-vector ,a) (tthe fixnum ,i)))
 
 (defmacro %ssvref (a i)
-  `(the simple-vector (svref (the simple-vector ,a) (the fixnum ,i))))
+  `(the simple-vector (svref (the simple-vector ,a) (tthe fixnum ,i))))
 
 (defmacro %dotimes (form1 &body body)
   `(dotimes ,form1 (declare (fixnum ,(car form1))) . ,body))

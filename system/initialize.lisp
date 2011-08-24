@@ -24,4 +24,4 @@
   weights)
 
 (defun seed-weights (weights &optional (input-range '(-1.0 1.0)))
-  (m*c (map-matrix weights #'(lambda (w) (apply #'plain-rng input-range))) 0.5))
+  (m*c (map-matrix weights #'(lambda (w) (declare (ignore w)) (apply #'plain-rng input-range))) 0.5))

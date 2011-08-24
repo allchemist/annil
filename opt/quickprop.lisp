@@ -1,5 +1,7 @@
 (in-package :annil)
 
+(export '(quickprop))
+
 (declaim (inline quickprop-update))
 
 (defun quickprop-update (d s ps eps mu shrink-factor rate)

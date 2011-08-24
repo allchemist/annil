@@ -20,7 +20,6 @@
 	     (:file "utils")
 	     (:file "patterns")
 	     (:file "network")
-	     (:file "visual")
 	     (:file "initialize")))
    (:module opt
 	    :serial t
@@ -29,47 +28,56 @@
 	     (:file "sse")
 	     ;; (:file "rprop")
 	     (:file "quickprop")))
-   (:module archs
+   (:module preproc
+	    :components
+	    ((:file "centering")
+	     (:file "autoscale")
+	     (:file "outputs")
+	     (:file "pca-nipals")
+	     (:file "pca-svd")))
+   (:module tseries
+	    :serial t
+	    :components
+	    ((:file "stats")
+	     (:file "tseries")
+	     (:file "tseries-ops")))
+   (:module arch
 	    :serial t
 	    :components
 	    ((:module slp
-		      :serial t
 		      :components
-		      ((:file "slp")
-		       (:file "slp-train")))
+		      ((:file "slp")))
 	     (:module cascade
 		      :serial t
 		      :components
 		      ((:file "cascade")
-		       (:file "cascade-prune")
+		       (:file "cascade-train-c2")
 		       (:file "cascade-train")
-		       (:file "cascade-train-c2"))
-		      )
-	     (:module prune
+		       (:file "recurrent-cascade")
+		       (:file "recurrent-cascade-train")))
+	     (:module boost
 		      :serial t
 		      :components
-		      ((:file "obd")
-		       (:file "obs")))
-	     (:module pca
-		      :components
-		      ((:file "autoscale")
-		       (:file "centering")
-		       (:file "svd")
-		       (:file "nipals")))))
+		      ((:file "adaboost")))))
    (:module tasks
 	    :components
-	    ((:file "codec")
-	     (:module classify
+	    ((:module codec
 		      :serial t
 		      :components
-		      ((:file "classifier")
-		       (:file "filter-boost")
-		       (:file "infoboost")))))
+		      ((:file "simple")
+		       (:file "pca")))
+	     (:module classification
+		      :serial t
+		      :components
+		      ((:file "classifier")))
+	     (:module predict
+		      :serial t
+		      :components
+		      ((:file "tseries-patterns")
+		       (:file "predict")))))
    (:module tests
 	    :components
-	    ((:file "two-spirals")
-	     (:file "symbols")
+	    ((:file "2d-space")
 	     (:file "xor")
-	     (:module elena
-		      :components
-		      ((:file "concentric")))))))
+	     (:file "two-spirals")))
+   ))

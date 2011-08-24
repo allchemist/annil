@@ -1,7 +1,5 @@
 (in-package :annil)
 
-(in-package :annil)
-
 (defun rprop-update (w d pd pdw s ps dmin dmax err err-1)
   (dotimes (i (array-total-size w))
     (declare (type fixnum i))
@@ -46,7 +44,7 @@
 	    (prev-deltas (w-like))
 	    (prev-delta-weights (w-like))
 	    (best-weights (w-like))
-	    
+
 	    (npats (num-patterns train-patterns))
 	    (test-npats (num-patterns test-patterns))
 	    (err large-val) (err-1 0.0)

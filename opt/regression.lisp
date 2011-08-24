@@ -1,13 +1,27 @@
 (in-package :annil)
 
-(defun cv-split-patterns (patterns test-part)
+(defun cv-split-patterns (patterns test-part &optional (sequent nil))
   (let (train test)
-    (do-patterns-shuffle (patterns p)
-      (if (< (random 1.0) test-part)
-	  (push p test)
-	  (push p train)))
+    (if sequent
+	(let* ((npats (num-patterns patterns))
+	       (div (floor (* npats (- 1.0 test-part)))))
+	  (dotimes (i npats)
+	    (let ((p (get-pattern patterns i)))
+	      (if (<= i div)
+		  (push p train)
+		  (push p test)))))
+	(do-patterns-shuffle (patterns p)
+	  (if (< (random 1.0) test-part)
+	      (push p test)
+	      (push p train))))
     (values (coerce train 'simple-vector)
 	    (coerce test  'simple-vector))))
+
+(defun optimal-test-part-size (num-params &optional num-patterns)
+  (if (and num-patterns (> num-patterns (* num-params 30)))
+      0.0
+      (/ (- (sqrt (- (* 2 num-params) 1)) 1)
+	 (* 2 (- num-params 1)))))
 
 (defun update-params (params method)
   (let ((copy-params (copy-tree params)))

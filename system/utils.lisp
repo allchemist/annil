@@ -1,7 +1,6 @@
 (in-package :annil)
 
-(export '(info sigmoid-fn asigmoid-fn sigmoid-fn-deriv asigmoid-fn-deriv linear-fn linear-fn-deriv tanh-fn tanh-fn-deriv
-	  param lastcar random-shuffle random-shuffle-list random-elt maphash-collect annil-relative deriv-fn-name))
+(export '(info activation param annil-relative iota collect-sf append-sf m1 e1 sf-seq))
 
 (defmacro info (&rest body)
   `(progn (format *standard-output* " ;; ")
@@ -9,41 +8,124 @@
 
 ;; activation functions
 
+(defmacro define-single-float-mapper (name)
+  (subseq (macroexpand (second (macroexpand `(define-mapping-function ,name :annil)))) 0 4))
+
+(defun activation (obj fun)
+  (ecase fun
+    (:sigmoid (sigmoid-fn obj))
+    (:asigmoid (asigmoid-fn obj))
+    (:tanh (tanh-fn obj))
+    (:linear obj)))
+
+(defun activation-deriv (obj fun)
+  (ecase fun
+    (:sigmoid (sigmoid-fn-deriv obj))
+    (:asigmoid (asigmoid-fn-deriv obj))
+    (:tanh (tanh-fn-deriv obj))
+    (:linear (linear-fn-deriv obj))))
+
+;;sigmoid
+
 (defun sigmoid-fn (x)
-  (cond ((< x -15.0) -0.5)
-	((> x 15.0) +0.5)
-	(t (- (/ 1.0 (+ 1.0 (exp (- x)))) 0.5))))
+  (etypecase x
+    (single-float (%sigmoid-fn x))
+    (number (%sigmoid-fn (coerce x 'single-float)))
+    (array (smap-matrix-%sigmoid-fn x))))
 
-(defun asigmoid-fn (x)
-  (cond ((< x -15.0) 0.0)
-	((> x 15.0) 1.0)
-	(t (/ 1.0 (+ 1.0 (exp (- x)))))))
+(defun sigmoid-fn-deriv (x)
+  (etypecase x
+    (single-float (%sigmoid-fn-deriv x))
+    (number (%sigmoid-fn-deriv (coerce x 'single-float)))
+    (array (smap-matrix-%sigmoid-fn-deriv x))))
 
-(defun sigmoid-fn-deriv (fn)
-;  (- 0.25 (* fn fn)))
-  (* fn (- 1.0 fn)))
-
-(defun asigmoid-fn-deriv (fn)
-  (* fn (- 1.0 fn)))
-
-(defun linear-fn (x) x)
-
-(defun linear-fn-deriv (fn)
-  (declare (ignore fn))
-  1.0)
-  
-(declaim (ftype (function (single-float) single-float) tanh-fn tanh-fn-deriv))
-(defun tanh-fn (x)
+(defun %sigmoid-fn (x)
   (declare (optimize speed (safety 0))
 	   (type single-float x))
-  (cond ((< x -10.0) -1.71591)
-	((> x 10.0) 1.71591)
-	(t (* 1.71591 (the single-float (tanh (* 0.6666666 x)))))))
+  (tthe single-float
+	(cond ((< x -15.0) -0.5)
+	      ((> x 15.0) +0.5)
+	      (t (- (/ 1.0 (%+ 1.0 (exp (- x)))) 0.5)))))
 
-(defun tanh-fn-deriv (fn)
+(defun %sigmoid-fn-deriv (fn)
   (declare (optimize speed (safety 0))
 	   (type single-float fn))
-  (- 1.1439399 (* 0.38852075 fn fn)))
+  (tthe single-float (- 0.24 (* fn fn))))
+
+(define-single-float-mapper %sigmoid-fn)
+(define-single-float-mapper %sigmoid-fn-deriv)
+
+;; asigmoid
+
+(defun asigmoid-fn (x)
+  (etypecase x
+    (single-float (%asigmoid-fn x))
+    (number (%asigmoid-fn (coerce x 'single-float)))
+    (array (smap-matrix-%asigmoid-fn x))))
+
+(defun asigmoid-fn-deriv (x)
+  (etypecase x
+    (single-float (%asigmoid-fn-deriv x))
+    (number (%asigmoid-fn-deriv (coerce x 'single-float)))
+    (array (smap-matrix-%asigmoid-fn-deriv x))))
+
+(defun %asigmoid-fn (x)
+  (declare (optimize speed (safety 0))
+	   (type single-float x))
+  (tthe single-float (cond ((< x -15.0) 0.0)
+			   ((> x 15.0) 1.0)
+			   (t (/ 1.0 (%+ 1.0 (exp (- x))))))))
+
+(defun %asigmoid-fn-deriv (fn)
+  (declare (optimize speed (safety 0))
+	   (type single-float fn))
+  (tthe single-float (+ (* fn (- 1.0 fn)) 0.01)))
+
+(define-single-float-mapper %asigmoid-fn)
+(define-single-float-mapper %asigmoid-fn-deriv)
+
+;; tanh
+
+(defun tanh-fn (x)
+  (etypecase x
+    (single-float (%tanh-fn x))
+    (number (%tanh-fn (coerce x 'single-float)))
+    (array (smap-matrix-%tanh-fn x))))
+
+(defun tanh-fn-deriv (x)
+  (etypecase x
+    (single-float (%tanh-fn-deriv x))
+    (number (%tanh-fn-deriv (coerce x 'single-float)))
+    (array (smap-matrix-%tanh-fn-deriv x))))
+
+(defun %tanh-fn (x)
+  (declare (optimize speed (safety 0))
+	   (type single-float x))
+  (tthe single-float (cond ((< x -10.0) -1.71591)
+			   ((> x 10.0) 1.71591)
+			   (t (%* 1.71591 (tanh (* 0.6666666 x)))))))
+
+(defun %tanh-fn-deriv (fn)
+  (declare (optimize speed (safety 0))
+	   (type single-float fn))
+  (tthe single-float (- 1.1539399 (* 0.38852075 fn fn)))) ;; 1.1439399 + 0.01
+
+(define-single-float-mapper %tanh-fn)
+(define-single-float-mapper %tanh-fn-deriv)
+
+;; linear-fn
+
+(declaim (inline linear-fn linear-fn-deriv))
+(defun linear-fn (x) x)
+(defun linear-fn-deriv (x)
+  (etypecase x
+    (number 1.0)
+    (array (smap-matrix-%unit x))))
+
+(defun %unit (x) (declare (ignore x)) (tthe single-float 1.0))
+(define-single-float-mapper %unit)
+
+;; other functions
 
 (defun gauss-fn (val)
   (exp (- (* (square (- val 0.1)) 0.5))))
@@ -57,6 +139,19 @@
 (defun heaviside (val)
   (if (plusp val)
       1.0 0.0))
+
+(define-single-float-mapper log)
+(define-single-float-mapper exp)
+
+(defun log-scale (val)
+  (etypecase val
+    (number (log val))
+    (array (smap-matrix-log val))))
+
+(defun log-unscale (val)
+  (etypecase val
+    (number (exp val))
+    (array (smap-matrix-exp val))))
 
 ;; network parameters
 
@@ -78,8 +173,8 @@
       (setf (aref iota i) i))
     iota))
 
-(define-modify-macro extend-vector ()
-  (lambda (x) (adjust-array x (1+ (length x)))))
+(define-modify-macro extend-vector (&optional (delta 1))
+  (lambda (x d) (adjust-array x (+ (length x) (or d 1)))))
 
 (defun lastcar (list) (car (last list)))
 
@@ -131,3 +226,43 @@
 
 (defun toss-coin ()
   (if (zerop (random 2)) t nil))
+
+;; anaphoric
+
+(defmacro aif (test-form then-form &optional else-form)
+  `(let ((it ,test-form))
+     (if it ,then-form ,else-form)))
+
+(defmacro awhen (test-form &body body)
+  `(aif ,test-form
+     (progn ,@body)))
+
+(defun flatten (lis)
+  (declare (list lis))
+  (labels ((rec (lis acc)
+             (cond ((null lis) acc)
+                   ((atom lis) (cons lis acc))
+                   (t (rec (car lis) (rec (cdr lis) acc))))))
+    (rec lis nil)))
+
+(defun mkstr (&rest args)
+  (if args (format nil "~:@(~{~a~}~)" args)))
+
+(defun symb (&rest args)
+  (values (intern (apply #'mkstr args))))
+
+(deftype sf-seq ()
+  '(simple-array single-float (*)))
+
+(declaim (inline m1 e1))
+(defun m1 (num) (make-matrix 1 :initial-element num))
+(defun e1 (m1) (%fvref m1 0))
+(defun append-sf (&rest seqs) (apply #'concatenate 'sf-seq seqs))
+
+(defmacro collect-sf ((var count) &rest body)
+  (let ((collect (gensym)))
+    `(let ((,collect (make-matrix ,count)))
+       (declare (optimize speed (safety 0)))
+       (%dotimes (,var ,count ,collect)
+	 (%setf (%fvref ,collect ,var)
+		(progn ,@body))))))

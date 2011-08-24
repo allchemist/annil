@@ -1,7 +1,5 @@
 (in-package :annil)
 
-(gplt:gplt-start)
-
 (defun 2spiral-radius (i) (/ (* 6.5 (- 104 i)) 104))
 (defun 2spiral-angle (i) (* i (/ (coerce pi 'single-float) 16)))
 
@@ -29,8 +27,8 @@
 		(push p c1+) (push p c1-))
 	    (if (< (abs (ammax (m- (eval-network network (first p)) (second p)))) range)
 		(push p c2+) (push p c2-)))))
-    (gplt:gplt-restart)
-    (map nil #'gplt:gplt-exec
+    (gplt:gprestart)
+    (map nil #'gplt:gpexec
 	 `((unset key)
 	   (unset color)
 	   ,@(if out
@@ -41,21 +39,32 @@
     (dolist (pat (mapcar #'(lambda (p) (coerce p 'vector)) (list c1+ c1- c2+ c2-)))
       (dotimes (i (num-patterns pat))
 	(let ((p (get-pattern pat i)))
-	  (gplt:gplt-exec `(,(elt (first p) 0) ,(elt (first p) 1)))))
-      (gplt:gplt-exec '(e)))
+	  (gplt:gpexec `(,(elt (first p) 0) ,(elt (first p) 1)))))
+      (gplt:gpexec '(e)))
 
-    (gplt:gplt-display)))
+    (gplt:gpdisplay)))
 
-(defun demo-2spirals (&optional (patterns (genpat-2spirals)))
-  (info "Patterns number: ~A~%" (num-patterns patterns))
-  (make-instance
-   'simple-classifier
-   :net (cascade-train (make-cascade-network 2 1 'tanh-fn nil) patterns nil 10
-		       '((:eps . 0.35) (:mu . 2.0) (:epochs . 100) (:thr . 1.e-6) (:recompute . 30) (:verbosity . 2)
-			 (:classify-range . 0.8) (:test-set-mix-ratio . 3))
-		       '((:eps . 0.35) (:mu . 2.0) (:epochs . 100) (:thr . 1.e-6) (:recompute . 30) (:verbosity . 0)
-			 (:candidates . 5) (:test-set-mix-ratio . 2) (:epochs-handicap . 40))
-		       (lambda (n)
-			 (visual-test-2d n 15000 6.5 '(-1.0 1.0) 0.9)))
-   :range 0.8))
 
+(defun demo-2spirals-weak (&optional (patterns (genpat-2spirals)))
+  (info "Demonstration: solving two spirals problem with cascade2 network~%~%") (sleep 1)
+  (make-cascade-classifier
+   patterns nil
+   '((:act-fn . :tanh) (:eps . 0.2) (:mu . 2.0) (:epochs . 150) (:thr . 1.e-4) (:recompute . 20)
+     (:verbosity . 2) (:max-err-bits . 0.) (:misclassify-limit . 0.4))
+   '((:eps . 1.0) (:mu . 2.0) (:epochs . 200) (:thr . 1.e-5) (:recompute . 10) (:verbosity . 0)
+     (:candidates . 10) (:hidden-num . 20) (:epochs-handicap . 0)) ;nil))
+   nil (lambda (n) (visual-test-2d n 20000 6.5 '(-1.0 1.0) 0.4))))
+
+(defun demo-2spirals-boost (&optional (patterns (genpat-2spirals)))
+  (info "Demonstration: solving two spirals problem with adaboost over cascade2 networks~%~%") (sleep 1)
+  (make-adaboost-network
+   patterns
+   #'(lambda (pats)
+       (make-cascade-classifier
+	pats nil
+	'((:act-fn . :tanh) (:eps . 0.2) (:mu . 2.0) (:epochs . 150) (:thr . 1.e-4) (:recompute . 20)
+	  (:verbosity . 2) (:max-err-bits . 0.35) (:misclassify-limit . 0.4))
+	'((:eps . 1.0) (:mu . 2.0) (:epochs . 200) (:thr . 1.e-5) (:recompute . 10) (:verbosity . 0)
+	  (:candidates . 10) (:hidden-num . 20) (:epochs-handicap . 0)) ;nil))
+	nil nil))
+   '((:verbosity . t) (:max-weak . 3))))
